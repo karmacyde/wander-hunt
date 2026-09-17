@@ -1,17 +1,36 @@
 {
-  "name": "Wander — Day & Torchlight Hunts",
+  "name": "Wander — Scavenger Hunts for Young Explorers",
   "short_name": "Wander",
-  "description": "A tiny scavenger hunt for young explorers. Photograph your discoveries by day, tick off torchlight missions by night.",
+  "description": "A tiny scavenger hunt for young explorers. Six places to explore, each with a series of adventures that open one a day. Photograph your discoveries by daylight, tick off torchlight missions after dark.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ece6d8",
   "theme_color": "#2f6b4f",
-  "categories": ["education", "kids", "lifestyle"],
+  "categories": [
+    "education",
+    "kids",
+    "lifestyle"
+  ],
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

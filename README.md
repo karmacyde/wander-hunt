@@ -143,7 +143,7 @@ When a new version is deployed the app shows a small "Update ready — tap to
 refresh" pill rather than changing under the child's feet.
 
 To change the app and have devices pick it up, edit the files and bump `CACHE`
-in `sw.js` (`wander-v2` → `wander-v3`).
+in `sw.js` (`wander-v3` → `wander-v4`).
 
 ### Add to Home Screen on iPhone
 

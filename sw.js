@@ -9,7 +9,7 @@
  * activate and the page shows an "Update ready" pill.
  */
 
-const CACHE = "wander-v2";
+const CACHE = "wander-v3";
 
 const SHELL = [
   "./",
