@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2b3a4d"/>
+      <stop offset="55%" stop-color="#3c4f63"/>
+      <stop offset="100%" stop-color="#6d7f6a"/>
+    </linearGradient>
+    <mask id="crescent">
+      <rect width="512" height="512" fill="black"/>
+      <circle cx="150" cy="140" r="56" fill="white"/>
+      <circle cx="122" cy="120" r="48" fill="black"/>
+    </mask>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <circle cx="356" cy="158" r="58" fill="#e9a23b"/>
+  <rect width="512" height="512" fill="#f3ead6" mask="url(#crescent)"/>
+  <g fill="#f3ead6" opacity=".85">
+    <circle cx="70" cy="60" r="5"/><circle cx="256" cy="56" r="4"/><circle cx="452" cy="62" r="4.5"/>
+    <circle cx="60" cy="214" r="3.5"/><circle cx="452" cy="246" r="4"/><circle cx="254" cy="186" r="3.5"/>
+    <circle cx="210" cy="252" r="3"/>
+  </g>
+  <path d="M-10 512V352c78-52 158-68 244-40s148 44 288 12v188z" fill="#8aa27a"/>
+  <path d="M-10 512V416c96-30 186-22 276 12s150 20 246-10v94z" fill="#2f6b4f"/>
+  <path d="M150 424c0-58 26-100 52-126 26 26 52 68 52 126z" fill="#3f7a5a"/>
+  <path d="M330 434c0-42 19-72 38-91 19 19 38 49 38 91z" fill="#3f7a5a"/>
+</svg>
