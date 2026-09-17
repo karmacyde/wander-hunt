@@ -9,14 +9,14 @@
  * activate and the page shows an "Update ready" pill.
  */
 
-const CACHE = "wander-v1";
+const CACHE = "wander-v2";
 
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
-  "./discoveries.js",
+  "./adventures.js",
   "./storage.js",
   "./photos.js",
   "./effects.js",

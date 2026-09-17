@@ -74,9 +74,9 @@ export async function processImageFile(file) {
 
 /* ------------------------------------------------------- object URLs */
 
-const urlCache = new Map(); // itemId → { blob, url }
+const urlCache = new Map(); // photo key → { blob, url }
 
-/** Get a stable object URL for a blob, revoking any stale one. */
+/** A stable object URL for a blob, revoking any stale one for that key. */
 export function urlForPhoto(itemId, blob) {
   const cached = urlCache.get(itemId);
   if (cached && cached.blob === blob) return cached.url;
@@ -92,10 +92,6 @@ export function releasePhotoURL(itemId) {
     URL.revokeObjectURL(cached.url);
     urlCache.delete(itemId);
   }
-}
-
-export function releaseAllPhotoURLs() {
-  for (const id of [...urlCache.keys()]) releasePhotoURL(id);
 }
 
 /* ------------------------------------------------------------- sharing */

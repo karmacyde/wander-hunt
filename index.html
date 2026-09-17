@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Wander — Day &amp; Torchlight Hunts</title>
-  <meta name="description" content="A tiny scavenger-hunt app for young explorers. A photo hunt for daytime, a torchlight tick-list for night.">
-  <meta name="theme-color" content="#2b3a4d" id="theme-color">
+  <title>Wander — Scavenger Hunts for Young Explorers</title>
+  <meta name="description" content="A tiny scavenger-hunt app for young explorers. Photograph your discoveries by day, tick off torchlight missions after dark, and keep every finished adventure.">
+  <meta name="theme-color" content="#ece6d8" id="theme-color">
   <meta name="color-scheme" content="light dark">
 
   <!-- iPhone: run as a standalone app from the Home Screen -->
@@ -29,7 +29,7 @@
           <svg viewBox="0 0 64 64" width="72" height="72"><use href="#mark"/></svg>
         </span>
         <h1 class="brand-title">Wander</h1>
-        <p class="brand-sub">Day &amp; Torchlight Hunts</p>
+        <p class="brand-sub">Scavenger hunts for young explorers</p>
       </div>
 
       <h2 class="prompt">Who's exploring today?</h2>
@@ -41,7 +41,8 @@
 
       <form class="name-form" id="name-form" hidden>
         <label for="name-input">What's your first name?</label>
-        <input id="name-input" type="text" autocomplete="given-name" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="done" maxlength="20" placeholder="Your name">
+        <input id="name-input" type="text" autocomplete="given-name" autocapitalize="words"
+               autocorrect="off" spellcheck="false" enterkeyhint="done" maxlength="20" placeholder="Your name">
         <button class="btn primary" type="submit">That's me</button>
       </form>
 
@@ -63,143 +64,165 @@
 
     <div class="screen-body">
       <div class="home-heading">
-        <h1 class="home-title">Choose an adventure</h1>
+        <h1 class="home-title">Where are you exploring?</h1>
         <p class="home-sub" id="home-greeting">Ready to explore?</p>
       </div>
 
-      <button class="adventure day" type="button" id="card-day">
-        <span class="adventure-art" aria-hidden="true">
-          <svg viewBox="0 0 120 120" width="100%" height="100%"><use href="#art-day"/></svg>
-        </span>
-        <span class="adventure-text">
-          <span class="adventure-emoji" aria-hidden="true">☀️</span>
-          <span class="adventure-title">Day Adventure</span>
-          <span class="adventure-tag">Find it. Photograph it. Collect your discoveries.</span>
-          <span class="adventure-status" id="status-day">Start</span>
-        </span>
-      </button>
+      <div class="setting-list" id="setting-list"></div>
 
-      <button class="adventure night" type="button" id="card-night">
-        <span class="adventure-art" aria-hidden="true">
-          <svg viewBox="0 0 120 120" width="100%" height="100%"><use href="#art-night"/></svg>
+      <button class="shelf-btn" type="button" id="home-shelf" hidden>
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-book"/></svg>
+        <span>
+          <strong>My adventures</strong>
+          <small id="home-shelf-count"></small>
         </span>
-        <span class="adventure-text">
-          <span class="adventure-emoji" aria-hidden="true">🔦</span>
-          <span class="adventure-title">Torchlight Adventure</span>
-          <span class="adventure-tag">Grab a torch. Explore the dark. Tick off what you find.</span>
-          <span class="adventure-status" id="status-night">Start</span>
-        </span>
+        <svg class="chev" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#i-back"/></svg>
       </button>
 
       <p class="privacy-line">Your hunt and photos stay on this device.</p>
     </div>
   </section>
 
-  <!-- =============================================================== DAY -->
-  <section class="screen" id="screen-day" hidden>
+  <!-- =========================================================== SETTING -->
+  <section class="screen" id="screen-setting" hidden>
     <header class="topbar">
-      <button class="icon-btn" type="button" data-nav="home" aria-label="Back to adventures">
+      <button class="icon-btn" type="button" data-nav="home" aria-label="Back to settings">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg>
       </button>
-      <button class="progress-pill" type="button" data-nav="day-all" aria-label="Open all discoveries">
-        <span class="progress-ring" aria-hidden="true"><svg viewBox="0 0 36 36"><circle class="ring-track" cx="18" cy="18" r="15"/><circle class="ring-fill" id="ring-day" cx="18" cy="18" r="15"/></svg></span>
-        <span id="progress-day">0 of 16</span>
+      <span class="topbar-title" id="setting-heading">Setting</span>
+      <button class="icon-btn" type="button" data-nav="shelf" aria-label="My adventures">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-book"/></svg>
       </button>
-      <button class="icon-btn" type="button" data-nav="day-all" aria-label="All discoveries">
+    </header>
+    <div class="screen-body">
+      <div class="setting-head">
+        <p class="setting-head-emoji" id="setting-emoji" aria-hidden="true">☀️</p>
+        <p class="setting-head-place" id="setting-place"></p>
+        <p class="setting-head-note" id="setting-note"></p>
+      </div>
+      <ul class="adventure-list" id="adventure-list"></ul>
+    </div>
+  </section>
+
+  <!-- ============================================================= SHELF -->
+  <section class="screen" id="screen-shelf" hidden>
+    <header class="topbar">
+      <button class="icon-btn" type="button" data-nav="home" aria-label="Back">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg>
+      </button>
+      <span class="topbar-title">My adventures</span>
+      <span></span>
+    </header>
+    <div class="screen-body">
+      <p class="shelf-sub" id="shelf-sub"></p>
+      <div class="shelf-list" id="shelf-list"></div>
+    </div>
+  </section>
+
+  <!-- ======================================================= PHOTO HUNT -->
+  <section class="screen" id="screen-photo" hidden>
+    <header class="topbar">
+      <button class="icon-btn" type="button" data-nav="setting" aria-label="Back to the adventure list">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg>
+      </button>
+      <button class="progress-pill" type="button" data-nav="photo-all" aria-label="Open all discoveries">
+        <span class="progress-ring" aria-hidden="true"><svg viewBox="0 0 36 36"><circle class="ring-track" cx="18" cy="18" r="15"/><circle class="ring-fill" id="ring-photo" cx="18" cy="18" r="15"/></svg></span>
+        <span id="progress-photo">0 of 16</span>
+      </button>
+      <button class="icon-btn" type="button" data-nav="photo-all" aria-label="All discoveries">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-grid"/></svg>
       </button>
     </header>
 
     <div class="screen-body hunt-body">
-      <p class="eyebrow" id="day-eyebrow">Discovery 1</p>
-      <h2 class="challenge" id="day-title">Find something yellow</h2>
-      <p class="hint" id="day-hint"></p>
-
-      <div class="photo-stage" id="day-stage">
-        <!-- filled by app.js: either the camera prompt or the photo card -->
-      </div>
+      <p class="adventure-name" id="photo-adventure"></p>
+      <p class="eyebrow" id="photo-eyebrow">Discovery 1 of 16</p>
+      <h2 class="challenge" id="photo-title">Find something yellow</h2>
+      <p class="hint" id="photo-hint"></p>
+      <div class="photo-stage" id="photo-stage"></div>
     </div>
 
-    <footer class="actionbar" id="day-actions"></footer>
+    <footer class="actionbar" id="photo-actions"></footer>
     <input type="file" accept="image/*" capture="environment" id="camera-input" hidden>
   </section>
 
-  <!-- ============================================================ DAY ALL -->
-  <section class="screen" id="screen-day-all" hidden>
+  <!-- ==================================================== PHOTO JOURNAL -->
+  <section class="screen" id="screen-photo-all" hidden>
     <header class="topbar">
-      <button class="icon-btn" type="button" data-nav="day" aria-label="Back to hunt">
+      <button class="icon-btn" type="button" data-nav="photo" aria-label="Back to hunt">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg>
       </button>
-      <span class="topbar-title" id="day-all-heading">All discoveries</span>
-      <button class="icon-btn" type="button" data-settings="day" aria-label="Settings">
+      <span class="topbar-title" id="photo-all-heading">All discoveries</span>
+      <button class="icon-btn" type="button" data-settings-sheet aria-label="Settings">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-gear"/></svg>
       </button>
     </header>
     <div class="screen-body">
-      <div class="journal-head" id="day-journal-head"></div>
-      <div class="journal-grid" id="day-grid"></div>
+      <div class="journal-head" id="photo-journal-head"></div>
+      <div class="journal-grid" id="photo-grid"></div>
     </div>
-    <footer class="actionbar" id="day-all-actions"></footer>
+    <footer class="actionbar" id="photo-all-actions"></footer>
   </section>
 
-  <!-- ============================================================= NIGHT -->
-  <section class="screen" id="screen-night" hidden>
+  <!-- ======================================================== TICK HUNT -->
+  <section class="screen" id="screen-tick" hidden>
     <header class="topbar">
-      <button class="icon-btn" type="button" data-nav="home" aria-label="Back to adventures">
+      <button class="icon-btn" type="button" data-nav="setting" aria-label="Back to the adventure list">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg>
       </button>
-      <button class="progress-pill" type="button" data-nav="night-all" aria-label="Open all missions">
-        <span class="progress-ring" aria-hidden="true"><svg viewBox="0 0 36 36"><circle class="ring-track" cx="18" cy="18" r="15"/><circle class="ring-fill" id="ring-night" cx="18" cy="18" r="15"/></svg></span>
-        <span id="progress-night">0 of 16</span>
+      <button class="progress-pill" type="button" data-nav="tick-all" aria-label="Open all missions">
+        <span class="progress-ring" aria-hidden="true"><svg viewBox="0 0 36 36"><circle class="ring-track" cx="18" cy="18" r="15"/><circle class="ring-fill" id="ring-tick" cx="18" cy="18" r="15"/></svg></span>
+        <span id="progress-tick">0 of 16</span>
       </button>
-      <button class="icon-btn" type="button" data-nav="night-all" aria-label="All missions">
+      <button class="icon-btn" type="button" data-nav="tick-all" aria-label="All missions">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-list"/></svg>
       </button>
     </header>
 
-    <div class="screen-body hunt-body night-body">
+    <div class="screen-body hunt-body tick-body">
+      <p class="adventure-name" id="tick-adventure"></p>
       <div class="mission-card" id="mission-card">
-        <p class="eyebrow" id="night-eyebrow">🔦 Torchlight mission 1</p>
-        <p class="kind" id="night-kind">Look</p>
-        <h2 class="challenge" id="night-title">Find something sparkling in your torchlight</h2>
+        <p class="eyebrow" id="tick-eyebrow">Mission 1 of 16</p>
+        <p class="kind" id="tick-kind">Look</p>
+        <h2 class="challenge" id="tick-title">Find something sparkling in your torchlight</h2>
       </div>
       <p class="swipe-hint" id="swipe-hint">Swipe for another mission</p>
     </div>
 
-    <footer class="actionbar" id="night-actions">
+    <footer class="actionbar">
       <button class="found-btn" type="button" id="found-btn">
         <span class="found-label">Found it</span>
         <svg class="found-tick" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><use href="#i-tick"/></svg>
       </button>
       <div class="nav-row">
-        <button class="nav-btn" type="button" id="night-prev" aria-label="Previous mission">
+        <button class="nav-btn" type="button" id="tick-prev" aria-label="Previous mission">
           <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><use href="#i-back"/></svg>
         </button>
-        <button class="nav-btn text" type="button" id="night-skip">Skip for now</button>
-        <button class="nav-btn" type="button" id="night-next" aria-label="Next mission">
+        <button class="nav-btn text" type="button" id="tick-skip">Skip for now</button>
+        <button class="nav-btn" type="button" id="tick-next" aria-label="Next mission">
           <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" style="transform:scaleX(-1)"><use href="#i-back"/></svg>
         </button>
       </div>
     </footer>
   </section>
 
-  <!-- ========================================================== NIGHT ALL -->
-  <section class="screen" id="screen-night-all" hidden>
-    <div class="sky" id="night-sky" aria-hidden="true"></div>
+  <!-- =================================================== TICK CHECKLIST -->
+  <section class="screen" id="screen-tick-all" hidden>
+    <div class="sky" id="tick-sky" aria-hidden="true"></div>
     <header class="topbar">
-      <button class="icon-btn" type="button" data-nav="night" aria-label="Back to hunt">
+      <button class="icon-btn" type="button" data-nav="tick" aria-label="Back to hunt">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg>
       </button>
-      <span class="topbar-title" id="night-all-heading">All missions</span>
-      <button class="icon-btn" type="button" data-settings="night" aria-label="Settings">
+      <span class="topbar-title" id="tick-all-heading">All missions</span>
+      <button class="icon-btn" type="button" data-settings-sheet aria-label="Settings">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-gear"/></svg>
       </button>
     </header>
     <div class="screen-body">
-      <div class="journal-head" id="night-journal-head"></div>
-      <ul class="checklist" id="night-list"></ul>
+      <div class="journal-head" id="tick-journal-head"></div>
+      <ul class="checklist" id="tick-list"></ul>
     </div>
-    <footer class="actionbar" id="night-all-actions"></footer>
+    <footer class="actionbar" id="tick-all-actions"></footer>
   </section>
 
   <!-- =========================================================== DIALOGS -->
@@ -207,7 +230,8 @@
     <form method="dialog">
       <p class="sheet-emoji" id="safety-emoji" aria-hidden="true">🌿</p>
       <h2 id="safety-title">Before you go</h2>
-      <p class="sheet-text" id="safety-text">Stay where your grown-up says it's safe to explore.</p>
+      <p class="sheet-text" id="safety-blurb"></p>
+      <p class="safety-line" id="safety-text">Stay where your grown-up says it's safe to explore.</p>
       <p class="sheet-text small" id="safety-privacy">Your hunt and photos stay on this device.</p>
       <button class="btn primary big" type="submit" value="go">Let's go</button>
     </form>
@@ -225,7 +249,7 @@
         <input type="checkbox" role="switch" id="settings-sound" class="switch">
       </label>
       <div class="setting-row" id="settings-reset-row" hidden>
-        <span id="settings-reset-label">Start this hunt again</span>
+        <span id="settings-reset-label">Start this adventure again</span>
         <button class="btn small danger" type="button" id="settings-reset">Start again</button>
       </div>
       <p class="sheet-text small" id="settings-install">Tip: on iPhone, open the Share menu and choose “Add to Home Screen” to keep Wander handy — it works without signal.</p>
@@ -242,7 +266,7 @@
         <span class="hold-fill" aria-hidden="true"></span>
         <span class="hold-label">Press and hold to start again</span>
       </button>
-      <button class="btn" type="submit" value="cancel">Keep my hunt</button>
+      <button class="btn" type="submit" value="cancel">Keep my adventure</button>
     </form>
   </dialog>
 
@@ -258,6 +282,9 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <button class="update-pill" id="update-pill" type="button" hidden>Update ready — tap to refresh</button>
 
+  <!-- The printable journal. Hidden on screen, laid out by the print styles. -->
+  <div class="print-sheet" id="print-sheet" aria-hidden="true"></div>
+
   <!-- ============================================================= ICONS -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <defs>
@@ -268,35 +295,83 @@
       <symbol id="i-tick" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 016.5 6h1.7l1.1-1.6A1.5 1.5 0 0110.5 3.7h3a1.5 1.5 0 011.2.7L15.8 6h1.7A2.5 2.5 0 0120 8.5v8A2.5 2.5 0 0117.5 19h-11A2.5 2.5 0 014 16.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3.4" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
       <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v11M8 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 11v7.5A1.5 1.5 0 007.5 20h9a1.5 1.5 0 001.5-1.5V11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 015.5 4H10a2 2 0 012 2v13a2 2 0 00-2-1.6H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M20 5.5A1.5 1.5 0 0018.5 4H14a2 2 0 00-2 2v13a2 2 0 012-1.6h6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
       <symbol id="i-sun" viewBox="0 0 48 48"><circle cx="24" cy="24" r="10" fill="#e9a23b"/><g stroke="#e9a23b" stroke-width="3" stroke-linecap="round"><path d="M24 3v6M24 39v6M3 24h6M39 24h6M9.2 9.2l4.2 4.2M34.6 34.6l4.2 4.2M38.8 9.2l-4.2 4.2M13.4 34.6l-4.2 4.2"/></g></symbol>
 
-      <!-- Crescent masks: an arc path renders unreliably, so cut one circle from another -->
+      <!-- Crescents: an SVG arc path renders unreliably, so cut one circle out of another -->
       <mask id="m-mark"><circle cx="45" cy="20" r="11" fill="#fff"/><circle cx="39" cy="15" r="9.5" fill="#000"/></mask>
       <mask id="m-moon"><circle cx="36" cy="32" r="24" fill="#fff"/><circle cx="25" cy="23" r="21" fill="#000"/></mask>
-      <symbol id="i-moon" viewBox="0 0 64 64"><rect width="64" height="64" fill="#f3ead6" mask="url(#m-moon)"/></symbol>
       <mask id="m-night"><circle cx="88" cy="30" r="21" fill="#fff"/><circle cx="78" cy="22" r="18" fill="#000"/></mask>
+      <symbol id="i-moon" viewBox="0 0 64 64"><rect width="64" height="64" fill="#f3ead6" mask="url(#m-moon)"/></symbol>
 
-      <!-- App mark: sun and moon over a hill -->
+      <!-- App mark: a sun and a moon over a hill -->
       <symbol id="mark" viewBox="0 0 64 64">
         <circle cx="19" cy="26" r="11" fill="#e9a23b"/>
         <rect width="64" height="64" fill="#2b3a4d" mask="url(#m-mark)"/>
         <path d="M0 64V46c12-10 26-14 40-10s18 8 24 6v22z" fill="#2f6b4f"/>
       </symbol>
-      <!-- Home card art -->
-      <symbol id="art-day" viewBox="0 0 120 120">
+
+      <!-- ------------------------------------------------ setting artwork -->
+      <symbol id="art-out-and-about" viewBox="0 0 120 120">
         <circle cx="86" cy="34" r="16" fill="#e9a23b"/>
         <g stroke="#e9a23b" stroke-width="3" stroke-linecap="round"><path d="M86 8v8M86 52v8M60 34h8M104 34h8M67.6 15.6l5.7 5.7M98.7 46.7l5.7 5.7M67.6 52.4l5.7-5.7M98.7 21.3l5.7-5.7"/></g>
         <path d="M-4 124V88c18-14 40-22 66-14s38 12 62 4v46z" fill="#8aa27a"/>
         <path d="M-4 124V102c22-8 44-6 66 2s40 6 62-2v22z" fill="#2f6b4f"/>
         <path d="M30 96c0-14 6-24 12-30 6 6 12 16 12 30z" fill="#3f7a5a"/>
       </symbol>
-      <symbol id="art-night" viewBox="0 0 120 120">
+
+      <symbol id="art-torchlight" viewBox="0 0 120 120">
         <rect width="120" height="120" fill="#f3ead6" mask="url(#m-night)"/>
         <g fill="#f3ead6"><circle cx="20" cy="22" r="1.6"/><circle cx="38" cy="12" r="1.2"/><circle cx="54" cy="34" r="1.4"/><circle cx="30" cy="48" r="1"/><circle cx="110" cy="70" r="1.2"/><circle cx="12" cy="62" r="1.2"/><circle cx="66" cy="16" r="1.1"/></g>
         <path d="M-4 124V90c22-14 44-18 68-10s34 10 60 2v42z" fill="#141c2e"/>
         <path d="M14 120l14-38 34 38z" fill="#f2b25b" opacity=".28"/>
         <path d="M-4 124V104c24-6 46-4 68 4s34 4 60-2v18z" fill="#0b1220"/>
         <circle cx="16" cy="84" r="4" fill="#f2b25b"/>
+      </symbol>
+
+      <symbol id="art-rock-pools" viewBox="0 0 120 120">
+        <rect width="120" height="66" fill="#bcdcea"/>
+        <circle cx="94" cy="24" r="12" fill="#f3d49a"/>
+        <path d="M-4 66h128v14c-20 8-40 2-62-2s-46 2-66 6z" fill="#6ba7bd"/>
+        <path d="M-4 84c24-8 46-2 68 4s38 2 60-4v40H-4z" fill="#e3d6bb"/>
+        <ellipse cx="42" cy="100" rx="26" ry="10" fill="#8fc3d4"/>
+        <path d="M84 96c8-6 18-6 28-2v30H78z" fill="#a89d86"/>
+        <path d="M14 112c-6-4-10-10-10-10s8-2 12 2 4 8 4 8z" fill="#5a8f5f"/>
+        <circle cx="36" cy="100" r="3" fill="#d9743a"/>
+      </symbol>
+
+      <symbol id="art-rainy-day" viewBox="0 0 120 120">
+        <rect width="120" height="120" fill="#c9cfd4"/>
+        <ellipse cx="44" cy="26" rx="30" ry="15" fill="#9aa4ad"/>
+        <ellipse cx="80" cy="32" rx="26" ry="13" fill="#8b959f"/>
+        <g stroke="#7d97ab" stroke-width="2.6" stroke-linecap="round" opacity=".85">
+          <path d="M22 50l-5 16M42 46l-5 18M62 52l-5 15M82 48l-5 17M102 54l-5 14"/>
+        </g>
+        <path d="M-4 124V96c24-8 46-4 68 4s38 4 60-2v26z" fill="#6e7f6a"/>
+        <ellipse cx="46" cy="110" rx="34" ry="8" fill="#93a9b8"/>
+        <ellipse cx="46" cy="109" rx="20" ry="4" fill="#b7cbd8"/>
+      </symbol>
+
+      <symbol id="art-autumn" viewBox="0 0 120 120">
+        <rect width="120" height="120" fill="#f0dfc0"/>
+        <circle cx="96" cy="26" r="13" fill="#e9a23b" opacity=".85"/>
+        <path d="M-4 124V94c24-10 46-6 68 2s38 4 60-4v32z" fill="#b98b4a"/>
+        <path d="M-4 124V108c24-6 46-2 68 4s38 2 60-4v16z" fill="#8a6234"/>
+        <path d="M34 90c0-22 8-38 14-46 6 8 14 24 14 46z" fill="#c4562c"/>
+        <g fill="#d9743a"><circle cx="18" cy="60" r="4"/><circle cx="76" cy="52" r="3.5"/><circle cx="102" cy="74" r="3"/></g>
+        <g fill="#e0a53c"><circle cx="30" cy="40" r="3"/><circle cx="88" cy="88" r="3.5"/><circle cx="8" cy="88" r="3"/></g>
+      </symbol>
+
+      <symbol id="art-on-a-journey" viewBox="0 0 120 120">
+        <rect width="120" height="120" fill="#cfe3ef"/>
+        <circle cx="26" cy="24" r="11" fill="#f2d08a"/>
+        <path d="M-4 70c20-12 40-14 62-6s40 8 62-2v62H-4z" fill="#8aa27a"/>
+        <path d="M-4 124l44-44h40l44 44z" fill="#9aa0a6"/>
+        <path d="M56 124l4-44h4l4 44z" fill="#f4f1e8"/>
+        <path d="M22 96h34v14H22z" fill="#d9743a"/>
+        <path d="M30 88h18l6 8H30z" fill="#e88f5c"/>
+        <circle cx="30" cy="112" r="5" fill="#2b3a4d"/>
+        <circle cx="48" cy="112" r="5" fill="#2b3a4d"/>
       </symbol>
     </defs>
   </svg>

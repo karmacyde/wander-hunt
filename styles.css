@@ -1,7 +1,13 @@
 /* =====================================================================
    Wander — styles
+
    Mobile first, designed around a ~390px iPhone in portrait.
-   Three themes on <html data-theme>: home (dusk), day (paper), night (torchlight).
+
+   Palettes live on <html data-theme>: "home" (dusk cream), "day" (paper),
+   "night" (torchlight). A setting picks its own palette, and every component
+   below is written against the shared tokens rather than a hardcoded colour —
+   that is what lets the tick-list hunt work in daylight for a car journey and
+   in the dark for a torch.
    ===================================================================== */
 
 /* ------------------------------------------------------------ tokens */
@@ -18,7 +24,7 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --ease: cubic-bezier(.2, .7, .2, 1);
 
-  /* Day palette (also the base for home) */
+  /* Daylight */
   --day-bg: #f4efe4;
   --day-paper: #fffbf3;
   --day-ink: #1f2a24;
@@ -29,7 +35,7 @@
   --day-sun: #e9a23b;
   --day-line: #dcd3c1;
 
-  /* Night palette */
+  /* Torchlight */
   --night-bg: #0b1220;
   --night-surface: #141c2e;
   --night-surface-2: #1b2539;
@@ -41,40 +47,38 @@
   --night-line: #243044;
 }
 
-/* Theme: home — cream ground so both cards read clearly */
-:root[data-theme="home"] {
-  color-scheme: light;
-  --bg: #ece6d8;
-  --surface: var(--day-paper);
-  --ink: var(--day-ink);
-  --muted: var(--day-muted);
-  --accent: var(--day-forest);
-  --accent-ink: #fff;
-  --line: var(--day-line);
-  --bar: rgba(236, 230, 216, .92);
-  --press: rgba(31, 42, 36, .10);
-  --accent-wash: rgba(47, 107, 79, .13);
-}
-
+/* Shared by the two light palettes */
+:root[data-theme="home"],
 :root[data-theme="day"] {
   color-scheme: light;
-  --bg: var(--day-bg);
   --surface: var(--day-paper);
+  --surface-2: #f8f2e6;
   --ink: var(--day-ink);
   --muted: var(--day-muted);
   --accent: var(--day-forest);
   --accent-ink: #fff;
   --accent-2: var(--day-clay);
   --line: var(--day-line);
-  --bar: rgba(244, 239, 228, .92);
   --press: rgba(31, 42, 36, .10);
   --accent-wash: rgba(47, 107, 79, .13);
+  --card-shadow: 0 10px 30px rgba(31, 42, 36, .10);
+}
+
+:root[data-theme="home"] {
+  --bg: #ece6d8;
+  --bar: rgba(236, 230, 216, .92);
+}
+
+:root[data-theme="day"] {
+  --bg: var(--day-bg);
+  --bar: rgba(244, 239, 228, .92);
 }
 
 :root[data-theme="night"] {
   color-scheme: dark;
   --bg: var(--night-bg);
   --surface: var(--night-surface);
+  --surface-2: var(--night-surface-2);
   --ink: var(--night-ink);
   --muted: var(--night-muted);
   --accent: var(--night-amber);
@@ -84,6 +88,7 @@
   --bar: rgba(11, 18, 32, .92);
   --press: rgba(243, 234, 214, .12);
   --accent-wash: rgba(242, 178, 91, .16);
+  --card-shadow: 0 20px 50px rgba(0, 0, 0, .45);
 }
 
 /* ------------------------------------------------------------- reset */
@@ -112,7 +117,7 @@ body {
   transition: background-color .35s var(--ease), color .35s var(--ease);
 }
 
-/* Paper grain for day and home — pure CSS, no image asset */
+/* Paper grain for the light palettes — pure CSS, no image asset */
 :root[data-theme="day"] body,
 :root[data-theme="home"] body {
   background-image:
@@ -121,17 +126,14 @@ body {
     repeating-linear-gradient(90deg, rgba(0,0,0,.012) 0 1px, transparent 1px 3px);
 }
 
-/* Soft torchlight glow at the bottom of night screens */
+/* A torch glow low on the screen for the dark palette */
 :root[data-theme="night"] body {
   background-image:
     radial-gradient(ellipse 90% 45% at 50% 110%, rgba(242,178,91,.14), transparent 70%),
     radial-gradient(circle at 80% 8%, rgba(91,112,145,.18), transparent 40%);
 }
 
-button, input {
-  font: inherit;
-  color: inherit;
-}
+button, input { font: inherit; color: inherit; }
 button {
   appearance: none;
   border: 0;
@@ -141,10 +143,8 @@ button {
   user-select: none;
   -webkit-user-select: none;
 }
-button:focus-visible, input:focus-visible, a:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
-}
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+button[disabled] { cursor: default; }
 img { display: block; max-width: 100%; }
 [hidden] { display: none !important; }
 
@@ -194,11 +194,13 @@ img { display: block; max-width: 100%; }
   text-align: center;
   font-weight: 700;
   font-size: 17px;
-  letter-spacing: .01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .topbar > :first-child { justify-self: start; }
 .topbar > :last-child { justify-self: end; }
-.topbar > :nth-child(2) { justify-self: center; }
+.topbar > :nth-child(2) { justify-self: center; min-width: 0; }
 
 .icon-btn {
   display: grid;
@@ -225,11 +227,7 @@ img { display: block; max-width: 100%; }
   font-size: 16px;
   transition: transform .12s;
 }
-.chip > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip > svg { flex: none; }
 .chip:active { transform: scale(.96); }
 
@@ -278,11 +276,7 @@ img { display: block; max-width: 100%; }
   transition: transform .12s, background-color .15s, opacity .15s;
 }
 .btn:active { transform: scale(.97); }
-.btn.primary {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: transparent;
-}
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 .btn.big { min-height: 62px; font-size: 19px; }
 .btn.small { width: auto; flex: none; min-height: 44px; padding: 0 16px; font-size: 15px; white-space: nowrap; }
 .btn.danger { color: #b3402a; }
@@ -327,13 +321,14 @@ img { display: block; max-width: 100%; }
   letter-spacing: -.01em;
   text-wrap: balance;
 }
-.hint {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 16px;
-  min-height: 1.35em;
-}
+.hint { margin: 10px 0 0; color: var(--muted); font-size: 16px; }
 .hint:empty { display: none; }
+.adventure-name {
+  margin: 4px 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+}
 .prompt {
   margin: 28px 0 14px;
   font-family: var(--font-display);
@@ -341,12 +336,8 @@ img { display: block; max-width: 100%; }
   font-size: 26px;
   text-align: center;
 }
-.privacy-line {
-  margin: 28px 0 0;
-  text-align: center;
-  font-size: 14px;
-  color: var(--muted);
-}
+.privacy-line { margin: 28px 0 0; text-align: center; font-size: 14px; color: var(--muted); }
+.empty-note { margin: 28px 0; text-align: center; color: var(--muted); font-weight: 600; }
 
 /* ------------------------------------------------------------ player */
 .brand { text-align: center; }
@@ -399,67 +390,171 @@ img { display: block; max-width: 100%; }
 }
 .home-sub { margin: 4px 0 0; color: var(--muted); font-weight: 600; }
 
-.adventure {
+.setting-list { display: grid; gap: 12px; }
+
+.setting-card {
   display: grid;
-  grid-template-columns: 112px 1fr;
+  grid-template-columns: 96px 1fr;
   width: 100%;
-  margin-bottom: 14px;
   border-radius: var(--radius);
   overflow: hidden;
   text-align: left;
   border: 1px solid transparent;
-  box-shadow: 0 10px 30px rgba(31,42,36,.10);
+  box-shadow: 0 8px 24px rgba(31,42,36,.10);
   transition: transform .15s var(--ease), box-shadow .15s;
 }
-.adventure:active { transform: scale(.98); box-shadow: 0 4px 14px rgba(31,42,36,.12); }
-/* The hunt they were last in */
-.adventure.is-active { box-shadow: 0 0 0 2.5px var(--day-forest), 0 10px 30px rgba(31,42,36,.12); }
-.adventure.night.is-active { box-shadow: 0 0 0 2.5px var(--night-amber), 0 10px 30px rgba(11,18,32,.35); }
-.adventure-art { display: block; height: 100%; min-height: 150px; }
-.adventure-art svg { display: block; width: 100%; height: 100%; }
-.adventure-text {
-  display: flex;
-  flex-direction: column;
-  padding: 18px 18px 16px 14px;
-}
-.adventure-emoji { font-size: 22px; line-height: 1; margin-bottom: 8px; }
-.adventure-title {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.1;
-}
-.adventure-tag { margin-top: 6px; font-size: 14px; line-height: 1.35; }
-.adventure-status {
-  margin-top: 12px;
+.setting-card:active { transform: scale(.98); box-shadow: 0 3px 10px rgba(31,42,36,.12); }
+.setting-art { display: block; min-height: 122px; }
+.setting-art svg { display: block; width: 100%; height: 100%; }
+.setting-text { display: flex; flex-direction: column; padding: 14px 16px 14px 14px; }
+.setting-emoji { font-size: 19px; line-height: 1; margin-bottom: 5px; }
+.setting-title { font-family: var(--font-display); font-size: 22px; font-weight: 600; line-height: 1.1; }
+.setting-place { margin-top: 3px; font-size: 13px; line-height: 1.3; }
+.setting-status {
+  margin-top: 10px;
   align-self: flex-start;
-  padding: 7px 12px;
+  padding: 6px 12px;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
 }
 
-.adventure.day {
+.setting-card.day {
   background: linear-gradient(160deg, #fffdf6, var(--day-paper));
   color: var(--day-ink);
   border-color: var(--day-line);
 }
-.adventure.day .adventure-art { background: linear-gradient(180deg, #cfe3ef 0%, #eef3e4 100%); }
-.adventure.day .adventure-tag { color: var(--day-muted); }
-.adventure.day .adventure-status { background: var(--day-forest); color: #fff; }
-.adventure.day .adventure-status.done { background: var(--day-sun); color: var(--day-ink); }
+.setting-card.day .setting-place { color: var(--day-muted); }
+.setting-card.day .setting-status { background: var(--day-forest); color: #fff; }
 
-.adventure.night {
+.setting-card.night {
   background: linear-gradient(160deg, #1a2438, var(--night-bg));
   color: var(--night-ink);
   border-color: #2a3550;
 }
-.adventure.night .adventure-art { background: radial-gradient(circle at 70% 25%, #24324c, #0b1220 70%); }
-.adventure.night .adventure-tag { color: var(--night-muted); }
-.adventure.night .adventure-status { background: var(--night-amber); color: var(--accent-ink); }
-.adventure.night .adventure-status.done { background: var(--night-ink); color: var(--night-bg); }
+.setting-card.night .setting-place { color: var(--night-muted); }
+.setting-card.night .setting-status { background: var(--night-amber); color: #1a1206; }
 
-/* --------------------------------------------------------------- day */
+/* Finished, or waiting for tomorrow */
+.setting-card.done .setting-status { background: var(--day-sun); color: var(--day-ink); }
+.setting-card.night.done .setting-status { background: var(--night-ink); color: var(--night-bg); }
+.setting-card.waiting .setting-status { background: #e5ddcc; color: var(--day-muted); }
+.setting-card.night.waiting .setting-status { background: #253150; color: var(--night-muted); }
+
+/* The setting they were last in */
+.setting-card.is-active { box-shadow: 0 0 0 2.5px var(--day-forest), 0 8px 24px rgba(31,42,36,.12); }
+.setting-card.night.is-active { box-shadow: 0 0 0 2.5px var(--night-amber), 0 8px 24px rgba(11,18,32,.35); }
+
+.shelf-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 68px;
+  margin-top: 16px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  text-align: left;
+  transition: transform .12s;
+}
+.shelf-btn:active { transform: scale(.98); }
+.shelf-btn > svg:first-child { flex: none; color: var(--accent); }
+.shelf-btn span { flex: 1; display: flex; flex-direction: column; }
+.shelf-btn strong { font-size: 17px; }
+.shelf-btn small { color: var(--muted); font-size: 14px; font-weight: 600; }
+.shelf-btn .chev { flex: none; color: var(--muted); transform: scaleX(-1); }
+
+/* ------------------------------------------------- the setting screen */
+.setting-head { padding: 6px 0 18px; }
+.setting-head-emoji { margin: 0; font-size: 34px; line-height: 1; }
+.setting-head-place {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+}
+.setting-head-note { margin: 6px 0 0; color: var(--muted); font-size: 15px; line-height: 1.4; }
+
+.adventure-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+
+.adv-row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 74px;
+  padding: 12px 16px 12px 12px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  text-align: left;
+  transition: transform .12s, opacity .2s;
+}
+.adv-row:active:not([disabled]) { transform: scale(.985); }
+.adv-row[disabled] { opacity: .55; }
+.adv-mark {
+  display: grid;
+  place-items: center;
+  width: 42px; height: 42px;
+  border-radius: 13px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--muted);
+}
+.adv-mark.done { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+.adv-mark.done svg { width: 22px; height: 22px; }
+.adv-mark.locked { font-size: 18px; }
+.adv-text { display: flex; flex-direction: column; min-width: 0; }
+.adv-title { font-size: 18px; font-weight: 700; line-height: 1.2; }
+.adv-detail { margin-top: 3px; font-size: 14px; color: var(--muted); font-weight: 600; }
+.adv-chase {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+}
+:root[data-theme="night"] .adv-chase { color: var(--night-amber); }
+
+/* ------------------------------------------------------------- shelf */
+.shelf-sub { margin: 8px 0 16px; color: var(--muted); font-weight: 700; }
+.shelf-list { display: grid; gap: 12px; }
+.shelf-row {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  text-align: left;
+  box-shadow: var(--card-shadow);
+  transition: transform .12s;
+}
+.shelf-row:active { transform: scale(.985); }
+.shelf-cover {
+  width: 74px; height: 74px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+.shelf-cover.blank { display: grid; place-items: center; font-size: 30px; }
+.shelf-cover.blank.night { background: var(--night-surface-2); }
+.shelf-text { display: flex; flex-direction: column; min-width: 0; }
+.shelf-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+.shelf-meta { margin-top: 2px; font-size: 14px; color: var(--muted); font-weight: 600; }
+.shelf-count { margin-top: 4px; font-size: 13px; font-weight: 800; color: var(--accent); }
+
+/* -------------------------------------------------------- photo hunt */
 .hunt-body { display: flex; flex-direction: column; }
 .photo-stage {
   flex: 1;
@@ -468,8 +563,11 @@ img { display: block; max-width: 100%; }
   justify-content: center;
   align-items: center;
   min-height: 0;
-  padding: 18px 0 6px;
+  padding: 16px 0 6px;
 }
+/* With a photo and its note there is more to fit, so it flows from the top
+   and scrolls on a short screen rather than being centred and clipped. */
+.photo-stage.has-photo { justify-content: flex-start; padding-top: 12px; padding-bottom: 16px; }
 
 .camera-prompt {
   display: flex;
@@ -477,13 +575,12 @@ img { display: block; max-width: 100%; }
   align-items: center;
   gap: 14px;
   width: 100%;
-  padding: 26px 0 10px;
+  padding: 20px 0 10px;
 }
 .camera-btn {
   display: grid;
   place-items: center;
-  width: 112px;
-  height: 112px;
+  width: 112px; height: 112px;
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
@@ -492,11 +589,10 @@ img { display: block; max-width: 100%; }
 }
 .camera-btn svg { width: 52px; height: 52px; }
 .camera-btn:active { transform: scale(.94); box-shadow: 0 6px 16px rgba(47,107,79,.28); }
-.camera-btn[disabled] { opacity: .6; pointer-events: none; }
 .camera-label { font-weight: 700; color: var(--muted); }
 .camera-frame {
   width: min(100%, 300px);
-  height: clamp(200px, 42dvh, 380px);
+  height: clamp(190px, 40dvh, 370px);
   border: 2px dashed var(--line);
   border-radius: 18px;
   display: grid;
@@ -506,16 +602,14 @@ img { display: block; max-width: 100%; }
 }
 .camera-frame .corner {
   position: absolute; width: 22px; height: 22px;
-  border: 3px solid var(--accent-2, var(--accent)); border-radius: 4px;
+  border: 3px solid var(--accent-2); border-radius: 4px;
 }
 .camera-frame .corner.tl { top: 10px; left: 10px; border-right: 0; border-bottom: 0; }
 .camera-frame .corner.tr { top: 10px; right: 10px; border-left: 0; border-bottom: 0; }
 .camera-frame .corner.bl { bottom: 10px; left: 10px; border-right: 0; border-top: 0; }
 .camera-frame .corner.br { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
 
-.busy {
-  display: flex; align-items: center; gap: 12px; color: var(--muted); font-weight: 700;
-}
+.busy { display: flex; align-items: center; gap: 12px; color: var(--muted); font-weight: 700; }
 .spinner {
   width: 22px; height: 22px; border-radius: 50%;
   border: 3px solid var(--line); border-top-color: var(--accent);
@@ -535,20 +629,21 @@ img { display: block; max-width: 100%; }
 }
 .polaroid img {
   width: 100%;
-  /* Sized against the viewport so the caption and buttons always stay visible. */
-  height: clamp(170px, 38dvh, 400px);
+  /* Sized against the viewport so the caption, note and buttons all stay visible */
+  height: clamp(120px, 24dvh, 280px);
   object-fit: cover;
   border-radius: 4px;
-  background: #e8e1d4;
+  background: var(--surface-2);
 }
 .polaroid-caption {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin-top: 10px;
   font-family: var(--font-display);
   font-size: 17px;
 }
 .found-badge {
   display: inline-flex; align-items: center; gap: 4px;
+  flex: none;
   padding: 4px 10px; border-radius: 999px;
   background: var(--accent-wash);
   color: var(--accent);
@@ -560,7 +655,26 @@ img { display: block; max-width: 100%; }
   to   { opacity: 1; transform: translateY(0) rotate(-1.2deg) scale(1); }
 }
 
-/* --------------------------------------------------------- day: all */
+.note-field { display: block; width: min(100%, 340px); margin-top: 14px; }
+.note-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.note-field input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 16px;
+}
+.note-field input:focus { border-color: var(--accent); outline: none; }
+
+/* ------------------------------------------------------- the journal */
 .journal-head { padding: 6px 0 16px; }
 .journal-head:empty { display: none; }
 .journal-title {
@@ -612,7 +726,7 @@ img { display: block; max-width: 100%; }
   aspect-ratio: 1;
   border-radius: 6px;
   object-fit: cover;
-  background: #e8e1d4;
+  background: var(--surface-2);
 }
 .journal-empty {
   width: 100%;
@@ -631,9 +745,15 @@ img { display: block; max-width: 100%; }
   font-size: 14px;
   font-weight: 700;
   line-height: 1.25;
-  min-height: 2.5em;
 }
 .journal-card.todo .journal-caption { color: var(--muted); font-weight: 600; }
+.journal-note-line {
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--muted);
+}
 .journal-tick {
   position: absolute;
   top: 12px; right: 12px;
@@ -646,62 +766,56 @@ img { display: block; max-width: 100%; }
 }
 .journal-tick svg { width: 16px; height: 16px; }
 
-/* ------------------------------------------------------------- night */
-.night-body { justify-content: center; }
+/* --------------------------------------------------------- tick hunt */
+.tick-body { justify-content: center; }
 .mission-card {
   position: relative;
-  padding: 28px 24px 34px;
+  padding: 26px 22px 32px;
   border-radius: 26px;
-  background: linear-gradient(170deg, var(--night-surface-2), var(--night-surface));
-  border: 1px solid var(--night-line);
-  box-shadow: 0 20px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+  background: linear-gradient(170deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--line);
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255,255,255,.05);
   touch-action: pan-y;
   transition: transform .3s var(--ease), opacity .3s var(--ease);
   will-change: transform;
 }
 .mission-card::before {
-  /* a faint torch beam entering from the top-left */
+  /* a faint beam entering from the top-left */
   content: "";
   position: absolute; inset: 0;
   border-radius: inherit;
-  background: radial-gradient(ellipse 70% 45% at 8% 0%, rgba(242,178,91,.18), transparent 70%);
+  background: radial-gradient(ellipse 70% 45% at 8% 0%, var(--accent-wash), transparent 70%);
   pointer-events: none;
 }
 .mission-card.is-found {
-  border-color: rgba(242,178,91,.55);
-  box-shadow: 0 0 0 1px rgba(242,178,91,.25), 0 0 40px rgba(242,178,91,.18), 0 20px 50px rgba(0,0,0,.45);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-wash), 0 0 40px var(--accent-wash), var(--card-shadow);
 }
 .mission-card.slide-left  { transform: translateX(-40px); opacity: 0; transition: none; }
 .mission-card.slide-right { transform: translateX(40px);  opacity: 0; transition: none; }
-.mission-card .eyebrow { color: var(--night-amber); font-size: 12px; }
+.mission-card .eyebrow { font-size: 12px; }
 .kind {
   display: inline-block;
   margin: 8px 0 14px;
   padding: 5px 12px;
   border-radius: 999px;
-  background: rgba(91,112,145,.25);
-  color: #c7d2e6;
+  background: var(--press);
+  color: var(--muted);
   font-size: 13px;
   font-weight: 800;
   letter-spacing: .08em;
   text-transform: uppercase;
 }
-.mission-card .challenge { font-size: 34px; color: var(--night-ink); }
+.mission-card .challenge { font-size: 33px; }
 .mission-card .found-stamp {
   position: absolute; top: 18px; right: 18px;
   width: 42px; height: 42px; border-radius: 50%;
   display: grid; place-items: center;
-  background: var(--night-amber); color: var(--accent-ink);
-  box-shadow: 0 0 18px rgba(242,178,91,.5);
+  background: var(--accent); color: var(--accent-ink);
+  box-shadow: 0 0 18px var(--accent-wash);
 }
 .mission-card .found-stamp svg { width: 24px; height: 24px; }
-.swipe-hint {
-  margin: 16px 0 0;
-  text-align: center;
-  color: var(--night-muted);
-  font-size: 14px;
-  font-weight: 600;
-}
+.swipe-hint { margin: 16px 0 0; text-align: center; color: var(--muted); font-size: 14px; font-weight: 600; }
 
 .found-btn {
   display: flex;
@@ -711,47 +825,41 @@ img { display: block; max-width: 100%; }
   width: 100%;
   min-height: 80px;
   border-radius: 24px;
-  background: var(--night-amber);
+  background: var(--accent);
   color: var(--accent-ink);
   font-size: 24px;
   font-weight: 800;
-  letter-spacing: .02em;
-  box-shadow: 0 10px 30px rgba(242,178,91,.28), inset 0 -4px 0 rgba(0,0,0,.14);
+  box-shadow: 0 10px 30px var(--accent-wash), inset 0 -4px 0 rgba(0,0,0,.14);
   transition: transform .12s var(--ease), background-color .2s, box-shadow .2s;
 }
 .found-btn:active { transform: scale(.97); }
-.found-btn .found-tick { opacity: .9; }
+.found-btn .found-tick { opacity: .9; flex: none; }
 .found-btn.is-found {
-  background: var(--night-ink);
-  color: var(--night-bg);
-  box-shadow: 0 0 0 2px rgba(243,234,214,.25), 0 10px 30px rgba(243,234,214,.15);
+  background: var(--ink);
+  color: var(--bg);
+  box-shadow: 0 0 0 2px var(--press), 0 10px 30px rgba(0,0,0,.15);
 }
 .found-btn.pulse { animation: pulse .6s var(--ease); }
 @keyframes pulse {
   0% { transform: scale(1); }
-  35% { transform: scale(1.04); box-shadow: 0 0 0 10px rgba(242,178,91,.18), 0 10px 30px rgba(242,178,91,.35); }
+  35% { transform: scale(1.04); }
   100% { transform: scale(1); }
 }
 
-.nav-row {
-  display: grid;
-  grid-template-columns: 56px 1fr 56px;
-  gap: 8px;
-  align-items: center;
-}
+.nav-row { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; align-items: center; }
 .nav-btn {
   display: grid; place-items: center;
   min-height: 52px;
   border-radius: 16px;
-  background: rgba(255,255,255,.06);
-  color: var(--night-ink);
-  border: 1px solid var(--night-line);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
   transition: transform .12s, background-color .15s;
 }
-.nav-btn.text { font-weight: 700; color: var(--night-muted); font-size: 16px; }
-.nav-btn:active { transform: scale(.96); background: rgba(255,255,255,.1); }
+.nav-btn.text { font-weight: 700; color: var(--muted); font-size: 16px; }
+.nav-btn:active { transform: scale(.96); background: var(--surface-2); }
 
-/* ------------------------------------------------------- night: all */
+/* --------------------------------------------------- tick checklist */
 .checklist {
   list-style: none;
   margin: 0;
@@ -770,45 +878,45 @@ img { display: block; max-width: 100%; }
   min-height: 68px;
   padding: 10px 16px 10px 12px;
   border-radius: 18px;
-  background: var(--night-surface);
-  border: 1px solid var(--night-line);
+  background: var(--surface);
+  border: 1px solid var(--line);
   text-align: left;
   font-size: 19px;
   font-weight: 700;
-  color: var(--night-muted);
+  color: var(--muted);
   transition: transform .12s, background-color .2s, color .2s;
 }
 .check-row:active { transform: scale(.985); }
-.check-row.is-found { color: var(--night-ink); background: var(--night-surface-2); }
-.check-row.is-bonus .check-mark { border-color: rgba(242,178,91,.6); }
-.check-row.is-current { border-color: var(--night-slate); }
+.check-row.is-found { color: var(--ink); background: var(--surface-2); }
+.check-row.is-current { border-color: var(--accent-2); }
 .check-mark {
   width: 40px; height: 40px;
   border-radius: 50%;
   display: grid; place-items: center;
-  border: 2.5px solid var(--night-slate);
+  border: 2.5px solid var(--accent-2);
   color: var(--accent-ink);
-  transition: background-color .2s, border-color .2s, transform .2s var(--ease);
+  transition: background-color .2s, border-color .2s;
 }
 .check-mark svg { width: 22px; height: 22px; opacity: 0; transform: scale(.5); transition: opacity .15s, transform .2s var(--ease); }
-.check-row.is-found .check-mark { background: var(--night-amber); border-color: var(--night-amber); box-shadow: 0 0 14px rgba(242,178,91,.35); }
+.check-row.is-found .check-mark { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 14px var(--accent-wash); }
 .check-row.is-found .check-mark svg { opacity: 1; transform: scale(1); }
-.check-row .row-kind { display: block; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--night-slate); margin-bottom: 2px; }
-.check-row.is-found .row-kind { color: var(--night-amber-deep); }
-
-/* Night sky effect layer (completion) */
-.sky {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
+.check-row.is-bonus .check-mark { border-color: var(--accent); }
+.check-row .row-kind {
+  display: block;
+  font-size: 12px; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  margin-bottom: 2px;
 }
+.check-row.is-found .row-kind { color: var(--accent); }
+
+/* Night sky, on the torchlight completion screen */
+.sky { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
 .sky:empty { display: none; }
 .sky .star {
   position: absolute;
   border-radius: 50%;
-  background: #f3ead6;
+  background: var(--night-ink);
   opacity: .3;
   animation: twinkle 4s ease-in-out infinite;
 }
@@ -829,26 +937,25 @@ img { display: block; max-width: 100%; }
   80%  { opacity: .85; }
   100% { transform: translate(-16px, -90px); opacity: 0; }
 }
-.moon {
-  display: block;
-  width: 64px; height: 64px;
-  margin: 0 0 10px;
-  animation: rise 1.2s var(--ease);
-}
+.moon, .journal-head .sun { display: block; width: 62px; height: 62px; margin: 0 0 10px; animation: rise 1.2s var(--ease); }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-
 :root[data-theme="night"] .journal-head { position: relative; z-index: 1; }
-:root[data-theme="night"] .journal-title { color: var(--night-ink); }
+
+/* The completion moment on a photo journal */
+.done-banner {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #fff3d6, #ffe4b8);
+  color: var(--day-ink);
+  font-weight: 700;
+  animation: rise .6s var(--ease);
+}
+.done-banner .sun { width: 38px; height: 38px; flex: none; margin: 0; animation: spin 60s linear infinite; }
 
 /* ---------------------------------------------------------- dialogs */
-dialog {
-  border: 0;
-  padding: 0;
-  color: var(--ink);
-  background: transparent;
-  max-width: none;
-  max-height: none;
-}
+dialog { border: 0; padding: 0; color: var(--ink); background: transparent; max-width: none; max-height: none; }
 dialog::backdrop { background: rgba(6,10,18,.55); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 
 dialog.sheet {
@@ -865,21 +972,29 @@ dialog.sheet {
 @media (min-width: 600px) {
   dialog.sheet { inset: 0; margin: auto; border-radius: 28px; height: fit-content; }
 }
-dialog.sheet form {
-  display: grid;
-  gap: 12px;
-  padding: 22px 24px calc(20px + var(--safe-bottom));
-}
+dialog.sheet form { display: grid; gap: 12px; padding: 22px 24px calc(20px + var(--safe-bottom)); }
 dialog.sheet h2 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 28px;
   font-weight: 600;
-  letter-spacing: -.01em;
 }
 .sheet-emoji { margin: 0; font-size: 40px; line-height: 1; }
 .sheet-text { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.4; }
 .sheet-text.small { font-size: 14px; font-weight: 500; color: var(--muted); }
+/* The safety line is set apart so it reads as guidance, not chatter. */
+.safety-line {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-wash);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.safety-line::before { content: "🧭"; flex: none; }
 @keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .setting-row {
@@ -902,7 +1017,7 @@ dialog.sheet h2 {
   background: var(--line);
   position: relative;
   transition: background-color .2s;
-  flex-shrink: 0;
+  flex: none;
 }
 .switch::after {
   content: "";
@@ -927,23 +1042,11 @@ dialog.sheet h2 {
   font-size: 17px;
   touch-action: none;
 }
-.hold-fill {
-  position: absolute; inset: 0;
-  width: 0;
-  background: rgba(255,255,255,.28);
-  transition: width 0s;
-}
+.hold-fill { position: absolute; inset: 0; width: 0; background: rgba(255,255,255,.28); transition: width 0s; }
 .hold-btn.holding .hold-fill { width: 100%; transition: width 1.2s linear; }
 .hold-label { position: relative; }
 
-dialog.lightbox {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background: #05080f;
-  color: #fff;
-}
+dialog.lightbox { position: fixed; inset: 0; width: 100%; height: 100%; background: #05080f; color: #fff; }
 dialog.lightbox form {
   height: 100%;
   display: flex;
@@ -961,7 +1064,7 @@ dialog.lightbox img {
   -webkit-user-select: auto;
   user-select: auto;
 }
-.lightbox-caption { margin: 0; font-family: var(--font-display); font-size: 18px; }
+.lightbox-caption { margin: 0; font-family: var(--font-display); font-size: 18px; text-align: center; }
 .lightbox-help { margin: 0; font-size: 14px; color: rgba(255,255,255,.7); }
 dialog.lightbox .btn { width: auto; min-width: 160px; }
 
@@ -1000,20 +1103,55 @@ dialog.lightbox .btn { width: auto; min-width: 160px; }
   box-shadow: 0 8px 24px rgba(0,0,0,.25);
 }
 
-/* Completion moment on the day journal */
-.done-banner {
-  display: flex; align-items: center; gap: 12px;
-  margin: 0 0 16px;
-  padding: 14px 16px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, #fff3d6, #ffe4b8);
-  color: var(--day-ink);
-  font-weight: 700;
-  animation: rise .6s var(--ease);
-}
-.done-banner .sun { width: 38px; height: 38px; flex: none; animation: spin 60s linear infinite; }
-
 /* ----------------------------------------------------------- motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
+}
+
+/* ============================================================ PRINT
+   The printable journal. It is built into #print-sheet on demand and is
+   invisible on screen; printing swaps the two over. On an iPhone the same
+   system sheet is how you save it as a PDF.
+   ==================================================================== */
+.print-sheet { display: none; }
+
+@media print {
+  html, body { background: #fff !important; color: #111 !important; }
+  body > *:not(.print-sheet) { display: none !important; }
+
+  .print-sheet {
+    display: block !important;
+    padding: 0;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+
+  .print-head { margin: 0 0 14pt; border-bottom: 1pt solid #bbb; padding-bottom: 8pt; }
+  .print-head h1 { margin: 0; font-size: 22pt; font-weight: normal; }
+  .print-head p { margin: 4pt 0 0; font-size: 10pt; color: #555; }
+
+  .print-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12pt;
+  }
+
+  .print-cell {
+    margin: 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .print-cell img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border: 0.5pt solid #ccc;
+  }
+  .print-blank { display: block; width: 100%; aspect-ratio: 1; border: 0.5pt dashed #ccc; }
+  .print-cell figcaption { margin-top: 3pt; font-size: 8.5pt; line-height: 1.25; }
+  .print-cell figcaption strong { display: block; font-weight: bold; }
+  .print-cell figcaption em { display: block; color: #555; }
+
+  .print-foot { margin-top: 16pt; font-size: 8pt; color: #777; text-align: center; }
+
+  @page { margin: 14mm; }
 }

@@ -1,45 +1,65 @@
 /*
- * storage.js — everything that persists.
+ * storage.js — everything that persists, all of it on the device.
  *
- * Two stores, both on the device only:
- *   • App state (player, progress, settings) → localStorage as one small JSON blob.
- *   • Day-hunt photos → IndexedDB, keyed by discovery id, stored as resized JPEG blobs.
+ *   App state (player, progress, notes, settings) → localStorage, one JSON blob.
+ *   Photos                                        → IndexedDB, keyed
+ *                                                   "<adventureId>::<itemId>".
  *
- * Every operation is guarded. If storage is unavailable (private browsing,
- * quota exhausted, old browser) the app keeps working in memory and the
- * caller can tell the child gently that nothing will be remembered.
+ * Every operation is guarded. If storage is unavailable — private browsing, an
+ * exhausted quota, an old browser — the app keeps working from memory for the
+ * session and the caller can say so gently.
+ *
+ * Version 2 of the state introduced settings and adventures. Version 1 had a
+ * single "day" and "night" hunt, and `migrateV1` lifts that old shape into the
+ * new one without losing a single photograph.
  */
 
-const STATE_KEY = "wander.v1";
+const STATE_KEY = "wander.v2";
+const LEGACY_STATE_KEY = "wander.v1";
 const DB_NAME = "wander-photos";
 const DB_VERSION = 1;
 const STORE = "photos";
 
+/* The two adventures a v1 save becomes. */
+export const V1_DAY_ADVENTURE = "out-and-about-1";
+export const V1_NIGHT_ADVENTURE = "torchlight-1";
+
+/* ---------------------------------------------------------------- dates */
+
+/** Today as a local YYYY-MM-DD string. Local, so "tomorrow" means their tomorrow. */
+export function localDate(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 /* ---------------------------------------------------------------- state */
 
-export function defaultState() {
+function defaultState() {
   return {
-    version: 1,
+    version: 2,
     player: null, // { name: "Olive" }
-    activeHunt: null, // "day" | "night" | null
-    day: defaultHuntState(),
-    night: defaultHuntState(),
     settings: { sound: false },
+    lastSetting: null,
+    highestDateSeen: null, // guards against the clock being wound backwards
+    progress: {}, // { [settingId]: { adventures: { [adventureId]: adventureState } } }
     noticedStorageIssue: false
   };
 }
 
-export function defaultHuntState() {
+export function defaultAdventureState() {
   return {
-    found: {}, // { [itemId]: { at: ISO string } }
-    current: null, // itemId currently shown
+    found: {}, // { [itemId]: { at: ISO, note?: string } }
+    current: null, // itemId being shown
     startedAt: null,
     completedAt: null,
+    completedOn: null, // local YYYY-MM-DD — what the daily unlock reads
     safetyShown: false
   };
 }
 
-let memoryState = null; // fallback when localStorage is unusable
+let memoryState = null; // used when localStorage cannot be written
 let localStorageOk = null;
 
 function probeLocalStorage() {
@@ -59,35 +79,79 @@ export function stateStorageAvailable() {
   return probeLocalStorage();
 }
 
-/** Load saved state, merging over defaults so new fields always exist. */
+function readKey(key) {
+  if (!probeLocalStorage()) return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null; // missing or corrupt — treat as absent rather than crash
+  }
+}
+
+/**
+ * Turn a v1 save into a v2 one. Pure, so it can be checked directly and is
+ * safe to run more than once. Exported so the migration can be exercised on
+ * its own, away from a browser.
+ */
+export function migrateV1(old) {
+  const next = defaultState();
+  if (!old || typeof old !== "object") return next;
+
+  if (old.player && typeof old.player.name === "string") next.player = { name: old.player.name };
+  if (old.settings && typeof old.settings.sound === "boolean") next.settings.sound = old.settings.sound;
+
+  const lift = (slice, settingId, adventureId) => {
+    if (!slice || typeof slice !== "object") return;
+    const found = slice.found && typeof slice.found === "object" ? slice.found : {};
+    if (!Object.keys(found).length && !slice.startedAt) return; // nothing worth keeping
+    const state = { ...defaultAdventureState(), ...slice };
+    state.found = found;
+    // v1 had no completedOn, so derive one for the unlock rule to read.
+    state.completedOn = slice.completedAt ? localDate(new Date(slice.completedAt)) : null;
+    next.progress[settingId] = { adventures: { [adventureId]: state } };
+  };
+
+  lift(old.day, "out-and-about", V1_DAY_ADVENTURE);
+  lift(old.night, "torchlight", V1_NIGHT_ADVENTURE);
+
+  if (old.activeHunt === "day") next.lastSetting = "out-and-about";
+  else if (old.activeHunt === "night") next.lastSetting = "torchlight";
+
+  return next;
+}
+
+/**
+ * Load state, migrating a v1 save if that is all there is. Returns
+ * { state, migratedFromV1 } so the caller knows to re-key the photos too.
+ */
 export function loadState() {
-  if (memoryState) return memoryState;
-  let raw = null;
-  if (probeLocalStorage()) {
-    try {
-      raw = window.localStorage.getItem(STATE_KEY);
-    } catch {
-      raw = null;
-    }
+  if (memoryState) return { state: memoryState, migratedFromV1: false };
+
+  const current = readKey(STATE_KEY);
+  if (current && typeof current === "object") {
+    const base = defaultState();
+    const state = {
+      ...base,
+      ...current,
+      settings: { ...base.settings, ...(current.settings || {}) },
+      progress: current.progress && typeof current.progress === "object" ? current.progress : {}
+    };
+    memoryState = state;
+    return { state, migratedFromV1: false };
   }
-  let parsed = null;
-  if (raw) {
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      parsed = null; // corrupt — start fresh rather than crash
-    }
+
+  const legacy = readKey(LEGACY_STATE_KEY);
+  if (legacy) {
+    const state = migrateV1(legacy);
+    memoryState = state;
+    // The v1 key stays put until the photos are safely re-keyed, so a failure
+    // here cannot cost anybody their pictures.
+    return { state, migratedFromV1: true };
   }
-  const base = defaultState();
-  const state = parsed && typeof parsed === "object" ? {
-    ...base,
-    ...parsed,
-    day: { ...base.day, ...(parsed.day || {}) },
-    night: { ...base.night, ...(parsed.night || {}) },
-    settings: { ...base.settings, ...(parsed.settings || {}) }
-  } : base;
-  memoryState = state;
-  return state;
+
+  memoryState = defaultState();
+  return { state: memoryState, migratedFromV1: false };
 }
 
 /** Persist state. Returns false if it could not be written. */
@@ -99,6 +163,16 @@ export function saveState(state) {
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Called once the v1 photos have been re-keyed successfully. */
+export function dropLegacyState() {
+  if (!probeLocalStorage()) return;
+  try {
+    window.localStorage.removeItem(LEGACY_STATE_KEY);
+  } catch {
+    /* harmless — it is simply ignored next time */
   }
 }
 
@@ -132,7 +206,7 @@ function openDB() {
     request.onerror = () => reject(request.error || new Error("IndexedDB open failed"));
     request.onblocked = () => reject(new Error("IndexedDB blocked"));
   });
-  // A failed open should not be cached — a later attempt may succeed.
+  // A failed open is not cached; a later attempt may well succeed.
   dbPromise.catch(() => { dbPromise = null; });
   return dbPromise;
 }
@@ -160,16 +234,16 @@ function withStore(mode, run) {
   }));
 }
 
-/** record: { blob: Blob, width, height, at: ISO } */
-export function putPhoto(itemId, record) {
-  return withStore("readwrite", (store) => store.put(record, itemId));
+/** key is "<adventureId>::<itemId>"; record is { blob, width, height, at }. */
+export function putPhoto(key, record) {
+  return withStore("readwrite", (store) => store.put(record, key));
 }
 
-export function deletePhoto(itemId) {
-  return withStore("readwrite", (store) => store.delete(itemId));
+export function deletePhoto(key) {
+  return withStore("readwrite", (store) => store.delete(key));
 }
 
-/** Returns a Map of itemId → record for every stored photo. */
+/** Every stored photo as a Map of key → record. */
 export function getAllPhotos() {
   return openDB().then((db) => new Promise((resolve, reject) => {
     const map = new Map();
@@ -194,11 +268,44 @@ export function getAllPhotos() {
   }));
 }
 
-export function clearPhotos() {
-  return withStore("readwrite", (store) => store.clear());
+/**
+ * Delete only the photos of one adventure. Resetting a hunt must never touch
+ * the shelf, so there is deliberately no "clear everything" operation.
+ */
+export function deleteAdventurePhotos(adventureId) {
+  const prefix = `${adventureId}::`;
+  return withStore("readwrite", (store) => {
+    const request = store.openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      if (typeof cursor.key === "string" && cursor.key.startsWith(prefix)) cursor.delete();
+      cursor.continue();
+    };
+  });
 }
 
-/** Ask the browser not to evict our data when it tidies up. Best effort. */
+/**
+ * Re-key v1 photos, which were stored under a bare item id, into the new
+ * "<adventureId>::<itemId>" form. Each is written to its new key before the old
+ * one is removed, so an interruption can only ever duplicate, never lose.
+ * Resolves with the number of photos moved.
+ */
+export function migratePhotoKeys(adventureFor) {
+  return getAllPhotos().then((all) => {
+    const stale = [...all.keys()].filter((key) => typeof key === "string" && !key.includes("::"));
+    if (!stale.length) return 0;
+    return withStore("readwrite", (store) => {
+      for (const itemId of stale) store.put(all.get(itemId), `${adventureFor(itemId)}::${itemId}`);
+    })
+      .then(() => withStore("readwrite", (store) => {
+        for (const itemId of stale) store.delete(itemId);
+      }))
+      .then(() => stale.length);
+  });
+}
+
+/** Ask the browser not to evict our data when tidying up. Best effort. */
 export function requestPersistence() {
   try {
     if (navigator.storage && navigator.storage.persist) {

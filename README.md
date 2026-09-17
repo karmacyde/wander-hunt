@@ -1,114 +1,134 @@
-# Wander — Day & Torchlight Hunts
+# Wander — scavenger hunts for young explorers
 
-A tiny scavenger-hunt web app for young explorers. Text one link to a child, they
-pick who they are, pick an adventure, and go.
+A tiny scavenger-hunt web app for children. Text one link, they pick who they
+are, pick where they're exploring, and go.
 
-There are two deliberately different hunts:
-
-- **☀️ Day Adventure** — a photo hunt. Sixteen discoveries to find and photograph.
-- **🔦 Torchlight Adventure** — a night hunt. Sixteen missions to find, hear, notice
-  or make, ticked off with one thumb while the other hand holds a torch.
-
-No accounts, no logins, no server, no analytics. Everything a child does stays on
-their own device, and after the first load the app works with no signal at all.
+No accounts, no logins, no server, no analytics. Everything a child does stays
+on their own device, and after the first load the app works with no signal.
 
 ---
 
-## The two interaction models
+## How it's shaped
+
+Two levels, and this is the whole idea.
+
+**Settings** are *where you are*. There are six, and they are always free to
+choose — if you're at the beach today, you pick Rock Pools.
+
+| Setting | What it is | How you play | Look |
+|---|---|---|---|
+| ☀️ Out and About | A walk from your front door | Photograph it | Warm paper |
+| 🔦 Torchlight | Outside after dark | Tick it off | Dark, torchlit |
+| 🌊 Rock Pools | Down at the beach | Photograph it | Warm paper |
+| 🌧️ A Rainy Day | Out in the wet | Photograph it | Warm paper |
+| 🍂 Autumn | Among the falling leaves | Photograph it | Warm paper |
+| 🚗 On a Journey | In the car | Tick it off | Warm paper |
+
+**Adventures** are one expedition within a setting: sixteen challenges plus an
+optional ⭐ bonus. Each carries its own name and a line about the place, like
+"Low Tide — low tide is best, watch for slippery rocks".
+
+**The pacing.** Inside a setting the adventures run in order, and **the next one
+opens the day after you finish the one before**. Finish Low Tide on Monday and
+The Tide Line waits until Tuesday. Nothing unlocks it early. That makes a
+holiday last, and gives them a reason to come back tomorrow.
+
+Fourteen adventures ship with the app, about 240 challenges in all. Settings
+never lock each other, so a rainy week never shuts the beach, and the day and
+night hunts pace independently.
+
+---
+
+## The two ways to play
 
 They are built as separate screens, not one screen with a button swapped out.
+Which one a setting uses is a property of the setting, and so is its colour
+scheme — that is what lets a daytime car journey be a tick-list without a black
+screen.
 
-### Day: photograph it
+### Photograph it
 
-One discovery fills the screen ("Find a leaf bigger than your hand") above a large
-round camera button. Tapping it opens the iPhone camera directly. The moment a
-photo comes back it appears as a polaroid card, the discovery is marked found, and
-the child can go to the next one, retake, remove the photo, or share it.
+One discovery fills the screen above a large round camera button, which opens
+the iPhone camera directly. The moment a photo comes back it appears as a
+polaroid, the discovery is marked found, and they can add a short note about
+what it was. Then: next, retake, remove, or share.
 
-Nothing has to be done in order. **All discoveries** opens a grid of cards showing
-every challenge, with photo thumbnails for the ones already found. Tapping a card
-jumps to it. When all sixteen are found the grid becomes a small **journal**, and
-**Share journal** builds a single contact-sheet image of the whole adventure.
+Nothing has to be done in order. **All discoveries** is a grid of every
+challenge with thumbnails of the ones already found; tap one to jump to it. When
+all sixteen are found the grid becomes a **journal**, which can be shared as a
+single contact-sheet image or printed.
 
-### Night: tick it off
+### Tick it off
 
-A very dark screen, one large mission ("Find a spider web") and one very large
-**Found it** button. Tapping it glows, then moves on to the next unfinished
-mission on its own, so the phone can go back in a pocket. Swiping the card left or
-right moves between missions, and a found mission can be untapped to undo it.
+A single large mission and one very large **Found it** button. Tapping it glows,
+then moves to the next unfinished mission on its own, so the phone can go back
+in a pocket. Swiping the card moves between missions and tapping a found one
+undoes it. **All missions** is a big-target checklist: tap a row to tick it, tap
+again to clear it.
 
-**All missions** is a big-target checklist: tap a row to tick it, tap again to
-clear it. When the sixteenth is ticked, a quiet summary appears with a moon, a few
-stars and drifting fireflies. There is no photography anywhere in night mode —
-photos in the dark are frustrating and the torch is the point.
-
-Each hunt also has one optional **⭐ bonus**, shown last and not counted in the
-"of 16".
+There is no photography here at all. In the dark, photos are frustrating and the
+torch is the point; in a car, there is nothing to collect.
 
 ---
 
-## File structure
+## Keeping things
 
-```
-index.html              every screen's markup, plus the inline SVG icon sprite
-styles.css              design tokens and all three themes (home / day / night)
-app.js                  router, rendering, hunt logic, dialogs, service-worker registration
-discoveries.js          the content of both hunts — edit here to change the challenges
-storage.js              localStorage state and the IndexedDB photo store
-photos.js               capture → resize → JPEG, object URLs, sharing, contact sheet
-effects.js              night-sky completion effect and the optional chime
-sw.js                   service worker: precache the app shell, serve it offline
-manifest.webmanifest    PWA manifest
-icons/                  app icons (PNG) and the SVG sources they were rendered from
-```
+**The shelf.** Finishing an adventure keeps it. "My adventures" on the home
+screen lists every finished one, newest first, with its date and a cover photo.
+Tapping one reopens its journal. The home screen also keeps a running count of
+everything they have ever found.
 
-No build step, no dependencies, no framework. Plain ES modules loaded straight by
-the browser. Open any file and it is the file that runs.
+**Printing.** A finished photo journal has a **Print or save as PDF** button.
+It builds a clean sheet — photos three to a row with their notes, and the
+adventure name, place and date as a header — and hands it to the system print
+dialogue, which on an iPhone is also how you save a PDF.
 
-To change the challenges, edit `discoveries.js`. Titles can be reworded freely;
-keep each item's `id` stable, because saved progress and photos are keyed by it.
+**Resetting.** Settings inside an adventure offers "Start again". It asks for a
+press-and-hold rather than a tap, so it cannot happen by accident, and it only
+ever affects that one adventure. The rest of the shelf is never touched.
 
 ---
 
 ## Where the photos go
 
-Day-hunt photos never leave the phone.
+Photos never leave the phone.
 
 Each capture is decoded, scaled so its longest side is at most **1400 px**, and
 re-encoded as JPEG at quality 0.82 before it is stored — a 12 MP camera file
-becomes a few hundred kilobytes. The resized blob goes into **IndexedDB**
-(database `wander-photos`, keyed by discovery id). Nothing is uploaded, and there
-is no backend to upload it to.
+becomes a few hundred kilobytes. The result goes into **IndexedDB**, keyed
+`<adventureId>::<itemId>` so a challenge that appears in two adventures keeps
+two separate photographs. Nothing is uploaded, and there is no backend to
+upload it to.
 
-**Save / Share** hands the image to the phone's own share sheet
-(`navigator.share`), so a child can save it to Photos or send it to a grown-up
-themselves. Where the share sheet is unavailable, the photo opens full-screen with
-a "press and hold to save" hint instead.
+**Save / Share** hands the image to the phone's own share sheet, so a child can
+save it to Photos or send it to a grown-up themselves. Where that is
+unavailable, the photo opens full-screen with a "press and hold to save" hint.
 
-If IndexedDB is unavailable (private browsing, a very old browser, no space left),
-the app says so gently and keeps working for the current session.
+If IndexedDB is unavailable — private browsing, no space left — the app says so
+gently and keeps working for the session.
 
 ---
 
 ## What is remembered
 
-Stored in `localStorage` under the key `wander.v1`:
+Stored in `localStorage` under `wander.v2`:
 
-- the chosen player name
-- which hunt was last opened
-- which discoveries and missions are found, and when
-- the challenge each hunt is currently showing
-- whether each hunt is finished
+- the chosen explorer's name
+- which setting they were last in
+- for every adventure: which challenges are found, any notes, which one is
+  showing, when it was started and finished
+- the furthest date the app has seen, which is what stops the daily unlock being
+  bypassed by winding the clock back
 - the sound setting
 
-Close Safari, come back tomorrow, and the home screen offers
-"Continue · 9 of 16 found" for each hunt that is underway. Photos come back from
-IndexedDB with it.
+Close Safari, come back tomorrow, and each setting offers "Continue · 9 of 16".
+Photos come back from IndexedDB with it.
 
-**Resetting.** Settings inside a hunt offers "Start again". It asks for a
-press-and-hold rather than a tap, so it cannot happen by accident. Resetting the
-Day Adventure also deletes that hunt's photos from the device; resetting the
-Torchlight Adventure just clears the ticks.
+An install from the first version of Wander is migrated automatically on first
+load: its day and night hunts become the first adventure of Out and About and
+Torchlight, and its photos are re-keyed. Each photo is written to its new key
+before the old one is removed, so an interruption can only duplicate, never
+lose.
 
 ---
 
@@ -116,41 +136,64 @@ Torchlight Adventure just clears the ticks.
 
 `sw.js` precaches the whole app shell on install and serves it cache-first, with
 navigations falling back to the cached page. After one successful load the app
-opens and runs with the network switched off — the hunts make no network requests
-of their own at any point.
+opens and runs with the network switched off — the hunts make no network
+requests of their own at any point.
 
-When a new version is deployed, the app shows a small "Update ready — tap to
+When a new version is deployed the app shows a small "Update ready — tap to
 refresh" pill rather than changing under the child's feet.
 
-To change the app and have devices pick it up, edit the files and bump `CACHE` in
-`sw.js` (for example `wander-v1` → `wander-v2`).
+To change the app and have devices pick it up, edit the files and bump `CACHE`
+in `sw.js` (`wander-v2` → `wander-v3`).
 
 ### Add to Home Screen on iPhone
 
-1. Open the link in **Safari** (this only works in Safari, not Chrome on iOS).
+1. Open the link in **Safari** — this only works in Safari, not Chrome on iOS.
 2. Tap the **Share** button, the square with an arrow.
-3. Scroll down and tap **Add to Home Screen**, then **Add**.
+3. Scroll down, tap **Add to Home Screen**, then **Add**.
 
-It then opens full-screen with no browser chrome, keeps its own storage, and works
-offline. The layout respects the Dynamic Island and the home indicator.
+It then opens full-screen with no browser chrome, keeps its own storage, and
+works offline. The layout respects the Dynamic Island and the home indicator.
+
+---
+
+## File structure
+
+```
+index.html              every screen's markup, plus the inline SVG icon sprite
+styles.css              design tokens, the three palettes, print styles
+app.js                  router, rendering, the unlock rule, dialogs, boot
+adventures.js           all the content — settings and their adventures
+storage.js              localStorage state, the IndexedDB photo store, migration
+photos.js               capture → resize → JPEG, object URLs, sharing, contact sheet
+effects.js              the night-sky completion effect and the optional chime
+sw.js                   service worker: precache the shell, serve it offline
+manifest.webmanifest    PWA manifest
+icons/                  app icons, and the SVG sources they were rendered from
+```
+
+No build step, no dependencies, no framework. Plain ES modules loaded straight
+by the browser. Open any file and it is the file that runs.
+
+**To change the challenges, edit `adventures.js`.** Reword any title freely;
+keep the ids, because saved progress and photos are keyed by them. Adding an
+adventure to a setting is a matter of appending to its `adventures` array — the
+unlock rule and the shelf pick it up on their own.
 
 ---
 
 ## Deploying to GitHub Pages
 
-The app is all static files, so Pages needs no build.
+All static files, so Pages needs no build.
 
-1. Create a repository (for example `wander-hunt`) and push these files to `main`.
-2. In the repository, go to **Settings → Pages**.
-3. Under **Build and deployment**, choose **Deploy from a branch**, then branch
-   `main` and folder `/ (root)`. Save.
-4. After a minute the site is live at
-   `https://<your-username>.github.io/wander-hunt/` — that is the URL to text.
+1. Push to `main`.
+2. **Settings → Pages**, then **Deploy from a branch**, branch `main`, folder
+   `/ (root)`. Save.
+3. After a minute the site is live at
+   `https://<your-username>.github.io/wander-hunt/`.
 
-Every path in the app is relative, so it works from a subfolder like this without
-any configuration. `.nojekyll` is included so GitHub serves every file as-is.
-
-Pages is served over HTTPS, which service workers and the camera both require.
+Every path is relative, so it works from a subfolder without configuration.
+`.nojekyll` makes GitHub serve every file as-is. Pages is served over HTTPS,
+which service workers and the camera both require.
 
 ---
 
@@ -158,9 +201,9 @@ Pages is served over HTTPS, which service workers and the camera both require.
 
 > Your hunt and photos stay on this device.
 
-No accounts, no passwords, no email addresses, no cloud services, no analytics, no
-third-party code, no fonts or scripts loaded from anywhere. The only way a photo
-leaves the phone is if a child deliberately uses Save / Share.
+No accounts, no passwords, no email addresses, no cloud services, no analytics,
+no third-party code, no fonts or scripts loaded from anywhere. The only way a
+photo leaves the phone is if a child deliberately uses Save / Share.
 
 ---
 
@@ -168,7 +211,8 @@ leaves the phone is if a child deliberately uses Save / Share.
 
 - Designed for a ~390 px iPhone in portrait, and scales up to tablets.
 - Safe-area insets for the Dynamic Island, notch and home indicator.
-- Touch targets are at least 48 px, and the night mode's main button is 80 px tall.
-- The night theme is genuinely dark, with no white flashes, for outdoor reading.
+- Touch targets are at least 44 px, and the tick-list's main button is 80 px.
+- The torchlight palette is genuinely dark, with no white flashes, for reading
+  outside at night.
 - Honours `prefers-reduced-motion`; all animation stops.
-- Works with VoiceOver: real buttons, labels, and `aria-pressed` on the checklist.
+- Works with VoiceOver: real buttons, labels, and `aria-pressed` on checklists.
