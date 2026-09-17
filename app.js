@@ -27,7 +27,7 @@ const esc = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
    1. State & helpers
    ================================================================ */
 
-let state = store.loadState();
+const state = store.loadState();
 const photos = new Map(); // itemId → { blob, width, height, at }
 let photosAvailable = true;
 let dayBusy = false;
@@ -240,12 +240,17 @@ function renderHome() {
   for (const huntId of ["day", "night"]) {
     const status = $(`#status-${huntId}`);
     const count = coreCount(huntId);
+    const card = $(`#card-${huntId}`);
+    // Give the hunt they were last in a soft ring, so the eye lands on it.
+    card.classList.toggle("is-active", state.activeHunt === huntId && !isComplete(huntId) && count > 0);
     status.classList.remove("done");
     if (isComplete(huntId)) {
       status.textContent = huntId === "day" ? "Finished — see your journal" : "Finished — see your summary";
       status.classList.add("done");
-    } else if (count > 0 || state[huntId].startedAt) {
+    } else if (count > 0) {
       status.textContent = `Continue · ${count} of ${coreTotal(huntId)} found`;
+    } else if (state[huntId].startedAt) {
+      status.textContent = "Continue";
     } else {
       status.textContent = "Start";
     }
