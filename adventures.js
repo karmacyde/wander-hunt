@@ -460,8 +460,8 @@ export const SETTINGS = {
   }
 };
 
-/** Settings in the order they appear on the home screen. */
-export const SETTING_ORDER = [
+/** The built-in settings, in the order they appear on the home screen. */
+const BUILT_IN_ORDER = [
   "out-and-about",
   "torchlight",
   "rock-pools",
@@ -470,16 +470,43 @@ export const SETTING_ORDER = [
   "on-a-journey"
 ];
 
+/* --------------------------------------------------------- custom hunts
+
+   A hunt that arrived in a link is registered here at boot and behaves as an
+   ordinary setting from then on. Keeping the registry beside the built-in
+   content means every lookup below covers both, and no screen needs to know
+   the difference. */
+
+const CUSTOM = new Map(); // settingId → setting, in the order they were added
+
+export function registerCustom(setting) {
+  CUSTOM.set(setting.id, setting);
+}
+
+export function unregisterCustom(settingId) {
+  CUSTOM.delete(settingId);
+}
+
+export function isCustom(settingId) {
+  return CUSTOM.has(settingId);
+}
+
 /* ------------------------------------------------------------- lookups */
 
+/** Every setting id in display order: the built-in ones, then any custom. */
+export function settingOrder() {
+  return [...BUILT_IN_ORDER, ...CUSTOM.keys()];
+}
+
 export function getSetting(settingId) {
-  return SETTINGS[settingId] || null;
+  return SETTINGS[settingId] || CUSTOM.get(settingId) || null;
 }
 
 /** Find an adventure anywhere by its id. Returns { setting, adventure, index }. */
 export function findAdventure(adventureId) {
-  for (const settingId of SETTING_ORDER) {
-    const setting = SETTINGS[settingId];
+  for (const settingId of settingOrder()) {
+    const setting = getSetting(settingId);
+    if (!setting) continue;
     const index = setting.adventures.findIndex((a) => a.id === adventureId);
     if (index !== -1) return { setting, adventure: setting.adventures[index], index };
   }

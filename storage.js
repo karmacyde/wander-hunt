@@ -16,6 +16,7 @@
 
 const STATE_KEY = "wander.v2";
 const LEGACY_STATE_KEY = "wander.v1";
+const DRAFT_KEY = "wander.draft";
 const DB_NAME = "wander-photos";
 const DB_VERSION = 1;
 const STORE = "photos";
@@ -44,6 +45,7 @@ function defaultState() {
     lastSetting: null,
     highestDateSeen: null, // guards against the clock being wound backwards
     progress: {}, // { [settingId]: { adventures: { [adventureId]: adventureState } } }
+    custom: {}, // { [huntId]: hunt } — hunts that arrived in a link
     noticedStorageIssue: false
   };
 }
@@ -135,7 +137,8 @@ export function loadState() {
       ...base,
       ...current,
       settings: { ...base.settings, ...(current.settings || {}) },
-      progress: current.progress && typeof current.progress === "object" ? current.progress : {}
+      progress: current.progress && typeof current.progress === "object" ? current.progress : {},
+      custom: current.custom && typeof current.custom === "object" ? current.custom : {}
     };
     memoryState = state;
     return { state, migratedFromV1: false };
@@ -163,6 +166,30 @@ export function saveState(state) {
     return true;
   } catch {
     return false;
+  }
+}
+
+/* The builder's draft, so a half-written hunt survives the phone locking. */
+
+export function loadDraft() {
+  return readKey(DRAFT_KEY);
+}
+
+export function saveDraft(draft) {
+  if (!probeLocalStorage()) return;
+  try {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    /* a lost draft is a small thing; never break the builder over it */
+  }
+}
+
+export function clearDraft() {
+  if (!probeLocalStorage()) return;
+  try {
+    window.localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* ignore */
   }
 }
 

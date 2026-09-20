@@ -21,7 +21,7 @@
  */
 
 import {
-  SETTINGS, SETTING_ORDER, KIND_LABELS,
+  SETTINGS, KIND_LABELS, settingOrder, registerCustom, unregisterCustom, isCustom,
   getSetting, findAdventure, allItems, isBonus, findItem, photoKey
 } from "./adventures.js";
 import * as store from "./storage.js";
@@ -30,6 +30,10 @@ import {
   shareImage, buildContactSheet
 } from "./photos.js";
 import { startNightSky, stopNightSky, playTick, playChime } from "./effects.js";
+import {
+  EMOJI_CHOICES, LIMITS, decodeHunt, huntLink, settingFromHunt,
+  newHuntId, takeHuntFragment, validate as validateHunt
+} from "./hunts.js";
 
 const $ = (sel) => document.querySelector(sel);
 const html = (strings, ...values) => strings.reduce((out, s, i) => out + s + (values[i] ?? ""), "");
@@ -130,8 +134,8 @@ function nextPlayable(setting) {
 function lifetimeStats() {
   let found = 0;
   let finished = 0;
-  for (const settingId of SETTING_ORDER) {
-    for (const adventure of SETTINGS[settingId].adventures) {
+  for (const settingId of settingOrder()) {
+    for (const adventure of getSetting(settingId).adventures) {
       const p = peek(settingId, adventure.id);
       if (!p) continue;
       found += Object.keys(p.found).length;
@@ -144,8 +148,8 @@ function lifetimeStats() {
 /** Every finished adventure, newest first. */
 function shelfEntries() {
   const rows = [];
-  for (const settingId of SETTING_ORDER) {
-    const setting = SETTINGS[settingId];
+  for (const settingId of settingOrder()) {
+    const setting = getSetting(settingId);
     for (const adventure of setting.adventures) {
       const p = peek(settingId, adventure.id);
       if (p && isComplete(adventure, p)) rows.push({ setting, adventure, progress: p });
@@ -223,6 +227,14 @@ function setRing(el, adventure, p) {
   el.style.strokeDashoffset = String(94.25 * (1 - fraction));
 }
 
+/**
+ * What to call the collection an adventure belongs to. A custom hunt is one
+ * adventure in a setting of the same name, so naming both would repeat it.
+ */
+function collectionName(setting, adventure) {
+  return setting.custom && setting.title === adventure.title ? "hunt" : setting.title;
+}
+
 /** Pick the singular or plural word for a count. */
 function plural(n, one, many) {
   return n === 1 ? one : many;
@@ -248,15 +260,19 @@ function niceDate(iso) {
 
 const PALETTE_COLORS = { home: "#ece6d8", day: "#f4efe4", night: "#0b1220" };
 const PARENT = {
-  player: "home", setting: "home", shelf: "home",
+  player: "home", setting: "home", shelf: "home", builder: "home",
   photo: "setting", "photo-all": "photo",
-  tick: "setting", "tick-all": "tick"
+  tick: "setting", "tick-all": "tick",
+  share: "builder"
 };
 const navStack = [];
 let currentScreen = null;
 
 function paletteFor(screen) {
-  if (screen === "home" || screen === "player" || screen === "shelf") return "home";
+  if (screen === "home" || screen === "player" || screen === "shelf"
+      || screen === "builder" || screen === "share" || screen === "received") {
+    return "home";
+  }
   const setting = getSetting(openSettingId);
   if (!setting) return "home";
   if (screen === "setting") return setting.palette === "night" ? "night" : "home";
@@ -283,6 +299,12 @@ function render(screen) {
     case "photo-all": renderPhotoAll(); break;
     case "tick": renderTickHunt(); break;
     case "tick-all": renderTickAll(); break;
+    case "builder": renderBuilder(); break;
+    case "share": renderShare(); break;
+    case "received":
+      if (receivedHunt) showReceived();
+      else goBack("home"); // nothing waiting — it was already opened
+      break;
     default: break;
   }
 }
@@ -319,6 +341,7 @@ window.addEventListener("popstate", (event) => {
   if ((screen === "setting" || screen.startsWith("photo") || screen.startsWith("tick")) && !getSetting(openSettingId)) {
     screen = "home";
   }
+  if (screen === "share" && !madeHunt) screen = "builder";
   show(screen);
 });
 
@@ -351,6 +374,12 @@ function setPlayer(name) {
   state.player = { name };
   save();
   goBack("home");
+  // If they arrived on a hunt link, the welcome was held back until they said
+  // who they were. Show it now.
+  if (receivedHunt) {
+    showReceived();
+    navigate("received");
+  }
 }
 
 $("#player-choices").addEventListener("click", (event) => {
@@ -389,8 +418,8 @@ function renderHome() {
     ? `${stats.found} ${plural(stats.found, "discovery", "discoveries")} so far, ${playerName()}.`
     : `Ready to explore, ${playerName()}?`;
 
-  $("#setting-list").innerHTML = SETTING_ORDER.map((settingId) => {
-    const setting = SETTINGS[settingId];
+  $("#setting-list").innerHTML = settingOrder().map((settingId) => {
+    const setting = getSetting(settingId);
     const next = nextPlayable(setting);
     const done = setting.adventures.filter((a) => {
       const p = peek(settingId, a.id);
@@ -752,7 +781,7 @@ function renderPhotoAll() {
         <span>Every discovery found. What an adventure!</span>
       </div>
       <h1 class="journal-title">${esc(adventure.title)}</h1>
-      <p class="journal-sub">${esc(joinParts([`${possessive(playerName())} ${setting.title}`, `${count} ${plural(count, "discovery", "discoveries")}`, niceDate(p.completedAt)]))}${bonusFound(adventure, p) ? " · plus the bonus ⭐" : ""}</p>
+      <p class="journal-sub">${esc(joinParts([`${possessive(playerName())} ${collectionName(setting, adventure)}`, `${count} ${plural(count, "discovery", "discoveries")}`, niceDate(p.completedAt)]))}${bonusFound(adventure, p) ? " · plus the bonus ⭐" : ""}</p>
       ${nextLine}`
     : html`
       <h1 class="journal-title">${esc(adventure.title)}</h1>
@@ -793,7 +822,9 @@ function renderPhotoAll() {
 function nextAdventureLine(setting, index) {
   const nextIndex = index + 1;
   if (nextIndex >= setting.adventures.length) {
-    return html`<p class="journal-note">That's every adventure in ${esc(setting.title)}. Try somewhere else!</p>`;
+    return setting.custom
+      ? html`<p class="journal-note">That's the whole hunt. Nicely done!</p>`
+      : html`<p class="journal-note">That's every adventure in ${esc(setting.title)}. Try somewhere else!</p>`;
   }
   const status = adventureStatus(setting, nextIndex);
   if (status === "open") {
@@ -830,7 +861,7 @@ async function shareJournal() {
     const blob = await buildContactSheet(entries, {
       heading: adventure.title,
       subheading: joinParts([
-        `${possessive(playerName())} ${setting.title}`,
+        `${possessive(playerName())} ${collectionName(setting, adventure)}`,
         `${entries.length} ${plural(entries.length, "discovery", "discoveries")}`,
         niceDate(p.completedAt || p.startedAt)
       ])
@@ -871,7 +902,7 @@ function printJournal() {
   $("#print-sheet").innerHTML = html`
     <header class="print-head">
       <h1>${esc(adventure.title)}</h1>
-      <p>${esc(joinParts([`${possessive(playerName())} ${setting.title}`, niceDate(p.completedAt || p.startedAt)]))}</p>
+      <p>${esc(joinParts([`${possessive(playerName())} ${collectionName(setting, adventure)}`, niceDate(p.completedAt || p.startedAt)]))}</p>
     </header>
     <div class="print-grid">${rows}</div>
     <footer class="print-foot">Wander · ${esc(setting.place)}</footer>`;
@@ -1047,7 +1078,7 @@ function renderTickAll() {
     head.innerHTML = html`
       ${night ? html`<svg class="moon" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-moon"/></svg>` : html`<svg class="sun" viewBox="0 0 48 48" aria-hidden="true"><use href="#i-sun"/></svg>`}
       <h1 class="journal-title">${esc(adventure.title)}</h1>
-      <p class="journal-sub">${esc(possessive(playerName()))} ${esc(setting.title)} · ${count} found${bonusFound(adventure, p) ? " · plus the bonus ⭐" : ""}</p>
+      <p class="journal-sub">${esc(possessive(playerName()))} ${esc(collectionName(setting, adventure))} · ${count} found${bonusFound(adventure, p) ? " · plus the bonus ⭐" : ""}</p>
       ${nextAdventureLine(setting, index)}`;
     if (night) startNightSky($("#tick-sky"));
     if (state.settings.sound && chimedFor !== p.completedAt) {
@@ -1137,7 +1168,10 @@ function renderShelf() {
             ${media}
             <span class="shelf-text">
               <span class="shelf-title">${esc(adventure.title)}</span>
-              <span class="shelf-meta">${esc(joinParts([`${setting.emoji} ${setting.title}`, niceDate(progress.completedAt)]))}</span>
+              <span class="shelf-meta">${esc(joinParts([
+                setting.custom && setting.title === adventure.title ? setting.emoji : `${setting.emoji} ${setting.title}`,
+                niceDate(progress.completedAt)
+              ]))}</span>
               <span class="shelf-count">${Object.keys(progress.found).length} found</span>
             </span>
           </button>`;
@@ -1154,6 +1188,394 @@ $("#shelf-list").addEventListener("click", (event) => {
   if (!setting) return;
   navigate(overviewScreen(setting));
 });
+
+/* ================================================================
+   8. Making a hunt of your own
+   ================================================================ */
+
+/*
+ * A hunt written here is encoded into a link and nothing else: there is no
+ * upload and no server. See hunts.js for the wire format. The draft is kept
+ * in localStorage as it is typed so a locked phone does not lose the work.
+ */
+
+let draft = null;
+let madeHunt = null; // the finished hunt, while the share screen is up
+
+function blankDraft() {
+  return {
+    title: "",
+    place: "",
+    note: "",
+    emoji: EMOJI_CHOICES[0],
+    mode: "photo",
+    night: false,
+    items: ["", "", "", ""]
+  };
+}
+
+function openBuilder() {
+  draft = store.loadDraft() || blankDraft();
+  if (!Array.isArray(draft.items) || draft.items.length < LIMITS.minItems) {
+    draft.items = [...(draft.items || []), "", "", "", ""].slice(0, LIMITS.minItems);
+  }
+  navigate("builder");
+}
+
+function renderBuilder() {
+  if (!draft) draft = store.loadDraft() || blankDraft();
+
+  $("#b-title").value = draft.title;
+  $("#b-place").value = draft.place;
+  $("#b-note").value = draft.note;
+
+  $("#b-emoji").innerHTML = EMOJI_CHOICES.map((emoji) => html`
+    <button class="emoji-btn${emoji === draft.emoji ? " is-chosen" : ""}" type="button"
+            data-emoji="${esc(emoji)}" aria-pressed="${emoji === draft.emoji}"
+            aria-label="Icon ${esc(emoji)}">${esc(emoji)}</button>`).join("");
+
+  document.querySelectorAll('input[name="b-mode"]').forEach((radio) => {
+    radio.checked = radio.value === draft.mode;
+  });
+  $("#b-night-line").hidden = draft.mode !== "tick";
+  $("#b-night").checked = Boolean(draft.night);
+
+  renderChallengeRows();
+  $("#b-error").hidden = true;
+}
+
+function renderChallengeRows() {
+  const atMax = draft.items.length >= LIMITS.maxItems;
+  $("#b-count").textContent = `${draft.items.filter((t) => t.trim()).length} of ${LIMITS.maxItems}`;
+  $("#b-items").innerHTML = draft.items.map((text, index) => html`
+    <li class="challenge-row">
+      <span class="challenge-number" aria-hidden="true">${index + 1}</span>
+      <input type="text" maxlength="${LIMITS.item}" data-index="${index}"
+             enterkeyhint="next" autocapitalize="sentences"
+             aria-label="Thing to find ${index + 1}"
+             placeholder="${index === 0 ? "Find something yellow" : "Something to find"}"
+             value="${esc(text)}">
+      <button class="challenge-remove" type="button" data-remove="${index}"
+              aria-label="Remove item ${index + 1}"
+              ${draft.items.length <= LIMITS.minItems ? "disabled" : ""}>
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#i-cross"/></svg>
+      </button>
+    </li>`).join("");
+  $("#b-add").disabled = atMax;
+  $("#b-add").textContent = atMax ? `That's the most (${LIMITS.maxItems})` : "+ Add another";
+}
+
+function saveDraftSoon() {
+  store.saveDraft(draft);
+}
+
+/* Field wiring. Values are read back on input so nothing is lost on a reload. */
+$("#b-title").addEventListener("input", (e) => { draft.title = e.target.value; saveDraftSoon(); });
+$("#b-place").addEventListener("input", (e) => { draft.place = e.target.value; saveDraftSoon(); });
+$("#b-note").addEventListener("input", (e) => { draft.note = e.target.value; saveDraftSoon(); });
+
+$("#b-emoji").addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-emoji]");
+  if (!btn) return;
+  draft.emoji = btn.dataset.emoji;
+  saveDraftSoon();
+  renderBuilder();
+});
+
+document.querySelectorAll('input[name="b-mode"]').forEach((radio) => {
+  radio.addEventListener("change", () => {
+    if (!radio.checked) return;
+    draft.mode = radio.value;
+    // A photo hunt is never dark — that is the thing the app set out to avoid.
+    if (draft.mode === "photo") draft.night = false;
+    saveDraftSoon();
+    $("#b-night-line").hidden = draft.mode !== "tick";
+    $("#b-night").checked = Boolean(draft.night);
+  });
+});
+
+$("#b-night").addEventListener("change", (e) => { draft.night = e.target.checked; saveDraftSoon(); });
+
+$("#b-items").addEventListener("input", (event) => {
+  const input = event.target.closest("[data-index]");
+  if (!input) return;
+  draft.items[Number(input.dataset.index)] = input.value;
+  $("#b-count").textContent = `${draft.items.filter((t) => t.trim()).length} of ${LIMITS.maxItems}`;
+  saveDraftSoon();
+});
+
+$("#b-items").addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-remove]");
+  if (!btn || btn.disabled) return;
+  draft.items.splice(Number(btn.dataset.remove), 1);
+  saveDraftSoon();
+  renderChallengeRows();
+});
+
+// Enter moves to the next box, and adds one when at the end.
+$("#b-items").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  const input = event.target.closest("[data-index]");
+  if (!input) return;
+  event.preventDefault();
+  const index = Number(input.dataset.index);
+  if (index === draft.items.length - 1 && draft.items.length < LIMITS.maxItems) {
+    addChallengeRow();
+  } else {
+    const next = $("#b-items").querySelector(`[data-index="${index + 1}"]`);
+    if (next) next.focus();
+  }
+});
+
+function addChallengeRow() {
+  if (draft.items.length >= LIMITS.maxItems) return;
+  draft.items.push("");
+  saveDraftSoon();
+  renderChallengeRows();
+  const last = $("#b-items").querySelector(`[data-index="${draft.items.length - 1}"]`);
+  if (last) last.focus();
+}
+
+$("#b-add").addEventListener("click", addChallengeRow);
+$("#builder-form").addEventListener("submit", (event) => event.preventDefault());
+
+function builderError(message) {
+  const el = $("#b-error");
+  el.textContent = message;
+  el.hidden = false;
+  el.scrollIntoView({ block: "center", behavior: "smooth" });
+}
+
+$("#b-make").addEventListener("click", async () => {
+  const items = draft.items.map((t) => t.trim()).filter(Boolean);
+  if (!draft.title.trim()) return builderError("Give the hunt a name first.");
+  if (!draft.place.trim()) return builderError("Say where the hunt happens.");
+  if (items.length < LIMITS.minItems) {
+    return builderError(`Write at least ${LIMITS.minItems} things to find. There ${items.length === 1 ? "is" : "are"} ${items.length} so far.`);
+  }
+
+  // Run it through the same validator a received hunt faces, so what the
+  // writer sees is exactly what the other phone will get.
+  const hunt = validateHunt({
+    i: newHuntId(),
+    t: draft.title,
+    p: draft.place,
+    n: draft.note,
+    e: draft.emoji,
+    m: draft.mode,
+    d: draft.night ? "night" : "day",
+    x: items
+  });
+  if (!hunt) return builderError("Something in that hunt didn't look right. Have another check.");
+
+  madeHunt = hunt;
+  // Keep it for the person who wrote it, too.
+  state.custom[hunt.id] = hunt;
+  registerCustom(settingFromHunt(hunt));
+  save();
+  store.clearDraft();
+  draft = blankDraft();
+  navigate("share");
+});
+
+/* ------------------------------------------------------ the share screen */
+
+async function renderShare() {
+  if (!madeHunt) {
+    goBack("builder");
+    return;
+  }
+  $("#share-emoji").textContent = madeHunt.emoji;
+  $("#share-title").textContent = madeHunt.title;
+  $("#share-place").textContent = madeHunt.place;
+  $("#share-count").textContent =
+    `${madeHunt.items.length} things to find · ${madeHunt.mode === "photo" ? "photograph them" : "tick them off"}`;
+
+  const box = $("#share-link");
+  box.value = "Making the link…";
+  try {
+    const link = await huntLink(madeHunt);
+    box.value = link;
+    $("#share-meta").textContent = `${link.length} characters — short enough to text.`;
+  } catch (err) {
+    box.value = "";
+    $("#share-meta").textContent = "The link couldn't be made on this device.";
+    console.warn("Link failed", err);
+  }
+}
+
+$("#share-send").addEventListener("click", async () => {
+  const link = $("#share-link").value;
+  if (!link || !madeHunt) return;
+  const data = { title: madeHunt.title, text: `${madeHunt.title} — a hunt for you`, url: link };
+  if (navigator.share) {
+    try {
+      await navigator.share(data);
+      return;
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+    }
+  }
+  copyLink();
+});
+
+async function copyLink() {
+  const link = $("#share-link").value;
+  if (!link) return;
+  try {
+    await navigator.clipboard.writeText(link);
+    toast("Link copied. Paste it into a message.");
+  } catch {
+    // Selecting it is the last resort, and works everywhere.
+    const box = $("#share-link");
+    box.focus();
+    box.select();
+    toast("Press and hold the link to copy it.");
+  }
+}
+
+$("#share-copy").addEventListener("click", copyLink);
+
+$("#share-play").addEventListener("click", () => {
+  if (!madeHunt) return;
+  openSettingId = `custom-${madeHunt.id}`;
+  state.lastSetting = openSettingId;
+  save();
+  goBack("home");
+  navigate("setting");
+});
+
+/* --------------------------------------------------- receiving in a link */
+
+let receivedHunt = null;
+
+/**
+ * Read a `#hunt=…` fragment, if there is one. The fragment is always cleared
+ * afterwards so a reload cannot re-add the hunt and the address bar stays
+ * tidy. Returns true if a hunt is waiting to be shown.
+ */
+async function takeSharedHunt() {
+  const fragment = takeHuntFragment();
+  if (!fragment) return false;
+
+  let hunt = null;
+  try {
+    hunt = await decodeHunt(fragment);
+  } catch {
+    hunt = null;
+  }
+
+  // Clear the fragment either way, so a bad link is not retried forever.
+  try {
+    history.replaceState(history.state, "", window.location.pathname + window.location.search);
+  } catch {
+    /* ignore */
+  }
+
+  if (!hunt) {
+    toast("That hunt link didn't look right. Ask for a new one.", 4000);
+    return false;
+  }
+
+  const known = Boolean(state.custom[hunt.id]);
+  state.custom[hunt.id] = hunt;
+  registerCustom(settingFromHunt(hunt));
+  save();
+
+  if (known) {
+    // Already had it: go straight there rather than making a fuss.
+    openSettingId = `custom-${hunt.id}`;
+    state.lastSetting = openSettingId;
+    save();
+    return false;
+  }
+
+  receivedHunt = hunt;
+  return true;
+}
+
+/**
+ * A hunt link tapped while the app is already open changes only the fragment,
+ * which is a same-document navigation: no reload, so boot() never runs again.
+ * That happens whenever the installed app is in the background and a link
+ * arrives in Messages, so it has to be handled live.
+ */
+window.addEventListener("hashchange", async () => {
+  if (!takeHuntFragment()) return;
+  let shared = false;
+  try {
+    shared = await takeSharedHunt();
+  } catch (err) {
+    console.warn("Shared hunt failed", err);
+  }
+  if (shared && state.player) {
+    showReceived();
+    navigate("received");
+  } else if (shared) {
+    navigate("player"); // ask who they are first; setPlayer picks it up
+  } else if (openSettingId && getSetting(openSettingId)) {
+    // Already had this one — go straight to it.
+    navigate("setting");
+  }
+});
+
+function showReceived() {
+  const hunt = receivedHunt;
+  if (!hunt) return;
+  $("#received-emoji").textContent = hunt.emoji;
+  $("#received-title").textContent = hunt.title;
+  $("#received-place").textContent = hunt.place;
+  $("#received-note").textContent = hunt.note || "";
+  $("#received-note").hidden = !hunt.note;
+  $("#received-count").textContent =
+    `${hunt.items.length} things to find · ${hunt.mode === "photo" ? "photograph them" : "tick them off"}`;
+}
+
+$("#received-go").addEventListener("click", () => {
+  if (!receivedHunt) return;
+  openSettingId = `custom-${receivedHunt.id}`;
+  state.lastSetting = openSettingId;
+  save();
+  receivedHunt = null;
+  goBack("home");
+  navigate("setting");
+});
+
+$("#received-later").addEventListener("click", () => {
+  receivedHunt = null;
+  goBack("home");
+});
+
+/* ------------------------------------------------------- removing one */
+
+async function removeCustomHunt(settingId) {
+  const setting = getSetting(settingId);
+  if (!setting || !setting.custom) return;
+  const huntId = settingId.replace(/^custom-/, "");
+
+  for (const adventure of setting.adventures) {
+    for (const item of allItems(adventure)) {
+      const key = photoKey(adventure.id, item.id);
+      photos.delete(key);
+      releasePhotoURL(key);
+    }
+    try {
+      await store.deleteAdventurePhotos(adventure.id);
+    } catch {
+      /* nothing stored */
+    }
+  }
+
+  delete state.custom[huntId];
+  delete state.progress[settingId];
+  if (state.lastSetting === settingId) state.lastSetting = null;
+  unregisterCustom(settingId);
+  save();
+
+  if (openSettingId === settingId) openSettingId = null;
+  goBack("home");
+  toast(`“${setting.title}” was removed from this device.`);
+}
 
 /* ================================================================
    7. Dialogs, toasts, service worker, boot
@@ -1202,6 +1624,7 @@ function showSafety(setting) {
 
 /* Settings */
 let settingsAdventureId = null;
+let settingsCustomId = null;
 
 function openSettings(adventureId) {
   settingsAdventureId = adventureId;
@@ -1210,6 +1633,11 @@ function openSettings(adventureId) {
   const found = adventureId ? findAdventure(adventureId) : null;
   $("#settings-reset-row").hidden = !found;
   if (found) $("#settings-reset-label").textContent = `Start “${found.adventure.title}” again`;
+  // Only a hunt that arrived in a link can be removed; built-ins always stay.
+  const custom = found && found.setting.custom ? found.setting : null;
+  settingsCustomId = custom ? custom.id : null;
+  $("#settings-remove-row").hidden = !custom;
+  if (custom) $("#settings-remove-label").textContent = `Remove “${custom.title}”`;
   $("#settings-install").hidden = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
   openDialog(dialog);
 }
@@ -1225,6 +1653,26 @@ $("#settings-player").addEventListener("click", () => {
   navigate("player");
 });
 
+$("#settings-make").addEventListener("click", () => {
+  $("#dlg-settings").close();
+  openBuilder();
+});
+
+$("#settings-remove").addEventListener("click", () => {
+  const settingId = settingsCustomId;
+  $("#dlg-settings").close();
+  const setting = settingId ? getSetting(settingId) : null;
+  if (!setting) return;
+  $("#reset-title").textContent = `Remove “${setting.title}”?`;
+  $("#reset-text").textContent = setting.interaction === "photo"
+    ? "This takes the hunt off this device along with its photos. If you still have the link, you can always open it again."
+    : "This takes the hunt off this device. If you still have the link, you can always open it again.";
+  $("#reset-hold").dataset.adventure = "";
+  $("#reset-hold").dataset.custom = settingId;
+  $("#reset-hold .hold-label").textContent = "Press and hold to remove";
+  openDialog($("#dlg-reset"));
+});
+
 $("#settings-reset").addEventListener("click", () => {
   const adventureId = settingsAdventureId;
   $("#dlg-settings").close();
@@ -1236,6 +1684,8 @@ $("#settings-reset").addEventListener("click", () => {
     ? `This clears every discovery in this adventure and deletes its photos from this device. Your other adventures are not touched. It can't be undone.`
     : `This clears every ticked mission in this adventure so you can explore it again. Your other adventures are not touched.`;
   $("#reset-hold").dataset.adventure = adventureId;
+  $("#reset-hold").dataset.custom = "";
+  $("#reset-hold .hold-label").textContent = "Press and hold to start again";
   openDialog($("#dlg-reset"));
 });
 
@@ -1245,22 +1695,40 @@ let holdTimer = null;
 
 function beginHold(event) {
   event.preventDefault();
+  // Capture the pointer for the whole press. Without this a small wobble of a
+  // finger — or the sheet still settling into place underneath it — fires
+  // pointerleave and cancels the hold with no explanation.
+  if (event.pointerId !== undefined && holdBtn.setPointerCapture) {
+    try {
+      holdBtn.setPointerCapture(event.pointerId);
+    } catch {
+      /* not a real pointer (a keypress, or a synthetic event) */
+    }
+  }
   holdBtn.classList.add("holding");
   window.clearTimeout(holdTimer);
   holdTimer = window.setTimeout(() => {
     endHold();
-    performReset(holdBtn.dataset.adventure);
+    if (holdBtn.dataset.custom) removeCustomHunt(holdBtn.dataset.custom);
+    else performReset(holdBtn.dataset.adventure);
+    $("#dlg-reset").close();
   }, 1200);
 }
-function endHold() {
+function endHold(event) {
+  if (event && event.pointerId !== undefined && holdBtn.hasPointerCapture
+      && holdBtn.hasPointerCapture(event.pointerId)) {
+    holdBtn.releasePointerCapture(event.pointerId);
+  }
   window.clearTimeout(holdTimer);
   holdBtn.classList.remove("holding");
 }
 holdBtn.addEventListener("pointerdown", beginHold);
 holdBtn.addEventListener("pointerup", endHold);
-holdBtn.addEventListener("pointerleave", endHold);
 holdBtn.addEventListener("pointercancel", endHold);
-holdBtn.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") beginHold(event); });
+holdBtn.addEventListener("keydown", (event) => {
+  if (event.repeat) return; // auto-repeat must not restart the timer
+  if (event.key === "Enter" || event.key === " ") beginHold(event);
+});
 holdBtn.addEventListener("keyup", endHold);
 
 async function performReset(adventureId) {
@@ -1352,8 +1820,23 @@ function legacyAdventureFor(itemId) {
   return nightIds.has(itemId) ? store.V1_NIGHT_ADVENTURE : store.V1_DAY_ADVENTURE;
 }
 
+/** Re-register every hunt that arrived in a link on some earlier visit. */
+function registerSavedHunts() {
+  for (const [id, saved] of Object.entries(state.custom || {})) {
+    // Re-validate on the way in: a save can be hand-edited or half-written.
+    const hunt = validateHunt({
+      i: id, t: saved.title, p: saved.place, n: saved.note,
+      e: saved.emoji, m: saved.mode, d: saved.palette,
+      x: Array.isArray(saved.items) ? saved.items : []
+    });
+    if (hunt) registerCustom(settingFromHunt(hunt));
+    else delete state.custom[id]; // unusable — drop it rather than crash
+  }
+}
+
 async function boot() {
   store.requestPersistence();
+  registerSavedHunts();
 
   // A v1 install keeps its photos under bare item ids. Re-key them before
   // anything reads the store, and only then let go of the old state key.
@@ -1384,8 +1867,8 @@ async function boot() {
   // is never mistaken for "there was nothing there".
   if (photosAvailable) {
     let changed = false;
-    for (const settingId of SETTING_ORDER) {
-      const setting = SETTINGS[settingId];
+    for (const settingId of settingOrder()) {
+      const setting = getSetting(settingId);
       if (setting.interaction !== "photo") continue;
       for (const adventure of setting.adventures) {
         const p = peek(settingId, adventure.id);
@@ -1405,10 +1888,24 @@ async function boot() {
     if (changed) save();
   }
 
-  const startScreen = state.player ? "home" : "player";
+  // A hunt in the link is handled before anything renders, so the fragment is
+  // gone by the time the first screen appears.
+  let shared = false;
+  try {
+    shared = await takeSharedHunt();
+  } catch (err) {
+    console.warn("Shared hunt failed", err);
+  }
+
+  const startScreen = !state.player ? "player" : (shared ? "received" : "home");
   navStack.length = 0;
-  navStack.push(startScreen);
-  history.replaceState({ screen: startScreen, depth: 1 }, "");
+  navStack.push(startScreen === "received" ? "home" : startScreen);
+  history.replaceState({ screen: navStack[0], depth: 1 }, "");
+  if (startScreen === "received") {
+    showReceived();
+    navStack.push("received");
+    history.pushState({ screen: "received", depth: 2 }, "");
+  }
   show(startScreen);
 
   if (!store.stateStorageAvailable()) warnStorage();

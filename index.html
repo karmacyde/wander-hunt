@@ -225,6 +225,139 @@
     <footer class="actionbar" id="tick-all-actions"></footer>
   </section>
 
+  <!-- =========================================================== BUILDER -->
+  <section class="screen" id="screen-builder" hidden>
+    <header class="topbar">
+      <button class="icon-btn" type="button" data-nav="home" aria-label="Back">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg>
+      </button>
+      <span class="topbar-title">Make a hunt</span>
+      <span></span>
+    </header>
+
+    <div class="screen-body">
+      <p class="builder-intro">Write your own list of things to find, then send
+        it to somebody. The whole hunt travels inside the link, so nothing is
+        uploaded anywhere.</p>
+
+      <form class="builder" id="builder-form" novalidate>
+        <label class="field">
+          <span class="field-label">What's it called?</span>
+          <input id="b-title" type="text" maxlength="60" enterkeyhint="next"
+                 autocapitalize="sentences" placeholder="Ziggy's Birthday Hunt">
+        </label>
+
+        <label class="field">
+          <span class="field-label">Where is it?</span>
+          <input id="b-place" type="text" maxlength="60" enterkeyhint="next"
+                 autocapitalize="sentences" placeholder="Around the garden">
+        </label>
+
+        <label class="field">
+          <span class="field-label">A note for them <em>(optional)</em></span>
+          <input id="b-note" type="text" maxlength="140" enterkeyhint="next"
+                 autocapitalize="sentences" placeholder="Stay in the garden, watch out for bees.">
+        </label>
+
+        <fieldset class="field">
+          <legend class="field-label">Pick an icon</legend>
+          <div class="emoji-grid" id="b-emoji"></div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend class="field-label">How do they play it?</legend>
+          <div class="mode-choice">
+            <label class="mode-option">
+              <input type="radio" name="b-mode" value="photo" checked>
+              <span class="mode-box">
+                <strong>Photograph it</strong>
+                <small>They take a picture of each thing</small>
+              </span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="b-mode" value="tick">
+              <span class="mode-box">
+                <strong>Tick it off</strong>
+                <small>No camera, just find it and tap</small>
+              </span>
+            </label>
+          </div>
+          <label class="check-line" id="b-night-line" hidden>
+            <input type="checkbox" id="b-night" class="switch">
+            <span>This one's for after dark</span>
+          </label>
+        </fieldset>
+
+        <div class="field">
+          <span class="field-label">Things to find <em id="b-count">0 of 20</em></span>
+          <ul class="challenge-list" id="b-items"></ul>
+          <button class="btn" type="button" id="b-add">+ Add another</button>
+        </div>
+
+        <p class="builder-error" id="b-error" hidden></p>
+      </form>
+    </div>
+
+    <footer class="actionbar">
+      <button class="btn primary big" type="button" id="b-make">Get the link</button>
+    </footer>
+  </section>
+
+  <!-- ====================================================== SHARE A HUNT -->
+  <section class="screen" id="screen-share" hidden>
+    <header class="topbar">
+      <button class="icon-btn" type="button" data-nav="builder" aria-label="Back to editing">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg>
+      </button>
+      <span class="topbar-title">Your hunt is ready</span>
+      <span></span>
+    </header>
+
+    <div class="screen-body">
+      <div class="share-card">
+        <p class="share-emoji" id="share-emoji" aria-hidden="true">🎈</p>
+        <h1 class="share-title" id="share-title"></h1>
+        <p class="share-place" id="share-place"></p>
+        <p class="share-count" id="share-count"></p>
+      </div>
+
+      <p class="share-help">Send this link to whoever is doing the hunt. They
+        open it and it appears on their own home screen.</p>
+
+      <label class="field">
+        <span class="field-label">The link</span>
+        <textarea id="share-link" class="link-box" rows="3" readonly></textarea>
+      </label>
+      <p class="share-meta" id="share-meta"></p>
+    </div>
+
+    <footer class="actionbar">
+      <button class="btn primary big" type="button" id="share-send">Send it</button>
+      <div class="btn-row">
+        <button class="btn" type="button" id="share-copy">Copy link</button>
+        <button class="btn" type="button" id="share-play">Play it myself</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ==================================================== RECEIVED A HUNT -->
+  <section class="screen" id="screen-received" hidden>
+    <div class="screen-body centred">
+      <div class="received">
+        <p class="received-eyebrow">Someone has sent you a hunt</p>
+        <p class="received-emoji" id="received-emoji" aria-hidden="true">🎈</p>
+        <h1 class="received-title" id="received-title"></h1>
+        <p class="received-place" id="received-place"></p>
+        <p class="received-note" id="received-note"></p>
+        <p class="received-count" id="received-count"></p>
+      </div>
+    </div>
+    <footer class="actionbar">
+      <button class="btn primary big" type="button" id="received-go">Let's go</button>
+      <button class="btn quiet" type="button" id="received-later">Not just now</button>
+    </footer>
+  </section>
+
   <!-- =========================================================== DIALOGS -->
   <dialog class="sheet" id="dlg-safety">
     <form method="dialog">
@@ -248,6 +381,14 @@
         <span>Sounds</span>
         <input type="checkbox" role="switch" id="settings-sound" class="switch">
       </label>
+      <div class="setting-row">
+        <span>Make your own hunt</span>
+        <button class="btn small" type="button" id="settings-make">Make one</button>
+      </div>
+      <div class="setting-row" id="settings-remove-row" hidden>
+        <span id="settings-remove-label">Remove this hunt</span>
+        <button class="btn small danger" type="button" id="settings-remove">Remove</button>
+      </div>
       <div class="setting-row" id="settings-reset-row" hidden>
         <span id="settings-reset-label">Start this adventure again</span>
         <button class="btn small danger" type="button" id="settings-reset">Start again</button>
@@ -295,6 +436,7 @@
       <symbol id="i-tick" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 016.5 6h1.7l1.1-1.6A1.5 1.5 0 0110.5 3.7h3a1.5 1.5 0 011.2.7L15.8 6h1.7A2.5 2.5 0 0120 8.5v8A2.5 2.5 0 0117.5 19h-11A2.5 2.5 0 014 16.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3.4" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
       <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v11M8 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 11v7.5A1.5 1.5 0 007.5 20h9a1.5 1.5 0 001.5-1.5V11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-cross" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
       <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 015.5 4H10a2 2 0 012 2v13a2 2 0 00-2-1.6H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M20 5.5A1.5 1.5 0 0018.5 4H14a2 2 0 00-2 2v13a2 2 0 012-1.6h6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
       <symbol id="i-sun" viewBox="0 0 48 48"><circle cx="24" cy="24" r="10" fill="#e9a23b"/><g stroke="#e9a23b" stroke-width="3" stroke-linecap="round"><path d="M24 3v6M24 39v6M3 24h6M39 24h6M9.2 9.2l4.2 4.2M34.6 34.6l4.2 4.2M38.8 9.2l-4.2 4.2M13.4 34.6l-4.2 4.2"/></g></symbol>
 

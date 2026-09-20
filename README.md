@@ -89,6 +89,36 @@ ever affects that one adventure. The rest of the shelf is never touched.
 
 ---
 
+## Making your own hunt
+
+**Settings → Make your own hunt.** Write a name, where it happens, an optional
+note, pick an icon, choose whether it is photographed or ticked off, and list
+between 4 and 20 things to find. Then **Get the link**.
+
+The whole hunt travels inside the link. There is no upload and no account:
+
+```
+https://…/wander-hunt/#hunt=AmVPu0oEQRD8laaSSwYRuWgyDcTcTDHo…
+```
+
+Everything after the `#` is the hunt itself, compressed and encoded. A fragment
+is never sent to a web server, so the hunt goes from your phone to theirs and
+nowhere else. A sixteen-item hunt makes a link of about 500 characters, which
+texts perfectly well.
+
+Whoever opens it gets a "Someone has sent you a hunt" welcome, and from then on
+it sits on their home screen beside the built-in ones and behaves exactly like
+them: progress, photos, notes, the journal, printing and the shelf all work the
+same way. It also works offline once the app itself has loaded once.
+
+A hunt made this way can be removed again from its own settings, behind a
+press-and-hold. The link is a snapshot, so editing your copy will not change one
+you have already sent — write a new one instead.
+
+The writing screen keeps a draft as you type, so a locked phone loses nothing.
+
+---
+
 ## Where the photos go
 
 Photos never leave the phone.
@@ -143,7 +173,7 @@ When a new version is deployed the app shows a small "Update ready — tap to
 refresh" pill rather than changing under the child's feet.
 
 To change the app and have devices pick it up, edit the files and bump `CACHE`
-in `sw.js` (`wander-v3` → `wander-v4`).
+in `sw.js` (`wander-v4` → `wander-v5`).
 
 ### Add to Home Screen on iPhone
 
@@ -163,6 +193,7 @@ index.html              every screen's markup, plus the inline SVG icon sprite
 styles.css              design tokens, the three palettes, print styles
 app.js                  router, rendering, the unlock rule, dialogs, boot
 adventures.js           all the content — settings and their adventures
+hunts.js                hunts shared by link: encoding, decoding and validation
 storage.js              localStorage state, the IndexedDB photo store, migration
 photos.js               capture → resize → JPEG, object URLs, sharing, contact sheet
 effects.js              the night-sky completion effect and the optional chime
@@ -204,6 +235,12 @@ which service workers and the camera both require.
 No accounts, no passwords, no email addresses, no cloud services, no analytics,
 no third-party code, no fonts or scripts loaded from anywhere. The only way a
 photo leaves the phone is if a child deliberately uses Save / Share.
+
+A hunt shared by link is no exception. It rides in the URL fragment, which
+browsers never send to a server, so sharing one is between the two phones and
+whatever messaging app carries it. A hunt arriving from a link is treated as
+untrusted text: every field is length-checked and rendered as text, never as
+markup.
 
 ---
 

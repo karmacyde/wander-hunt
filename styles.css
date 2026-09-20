@@ -1103,6 +1103,199 @@ dialog.lightbox .btn { width: auto; min-width: 160px; }
   box-shadow: 0 8px 24px rgba(0,0,0,.25);
 }
 
+/* ============================================================== BUILDER
+   Writing a hunt of your own. A plain form, but with targets big enough to
+   fill in one-handed, because that is how it will actually be done.
+   ==================================================================== */
+
+.builder-intro {
+  margin: 8px 0 20px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.builder { display: grid; gap: 22px; }
+
+.field { display: block; border: 0; margin: 0; padding: 0; min-width: 0; }
+.field-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 7px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.field-label em { font-style: normal; font-weight: 700; text-transform: none; letter-spacing: 0; }
+
+.field input[type="text"],
+.link-box {
+  width: 100%;
+  min-height: 54px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 17px;
+  color: var(--ink);
+}
+.field input[type="text"]:focus, .link-box:focus { border-color: var(--accent); outline: none; }
+.field input::placeholder { color: color-mix(in srgb, var(--muted) 62%, transparent); }
+
+/* Icon picker */
+.emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.emoji-btn {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-height: 50px;
+  border-radius: 14px;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  font-size: 24px;
+  line-height: 1;
+  transition: transform .12s, border-color .15s, background-color .15s;
+}
+.emoji-btn:active { transform: scale(.92); }
+.emoji-btn.is-chosen { border-color: var(--accent); background: var(--accent-wash); }
+
+/* Photograph it / tick it off */
+.mode-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mode-option { display: block; cursor: pointer; }
+.mode-option input { position: absolute; opacity: 0; pointer-events: none; }
+.mode-box {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  height: 100%;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--line);
+  background: var(--surface);
+  transition: border-color .15s, background-color .15s;
+}
+.mode-box strong { font-size: 16px; }
+.mode-box small { color: var(--muted); font-size: 13px; line-height: 1.3; }
+.mode-option input:checked + .mode-box { border-color: var(--accent); background: var(--accent-wash); }
+.mode-option input:focus-visible + .mode-box { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  min-height: 48px;
+  font-weight: 700;
+}
+
+/* The list of things to find */
+.challenge-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
+.challenge-row {
+  display: grid;
+  grid-template-columns: 26px 1fr 44px;
+  align-items: center;
+  gap: 8px;
+}
+.challenge-number {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.challenge-row input { min-height: 52px; }
+.challenge-remove {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--muted);
+  transition: background-color .15s, color .15s, opacity .15s;
+}
+.challenge-remove:active { background: var(--press); }
+.challenge-remove[disabled] { opacity: .25; }
+
+.builder-error {
+  margin: 0;
+  padding: 13px 15px;
+  border-radius: var(--radius-sm);
+  background: #fde8e2;
+  color: #8f3320;
+  font-weight: 700;
+  font-size: 15px;
+}
+:root[data-theme="night"] .builder-error { background: #3a2018; color: #ffb59a; }
+
+/* ================================================== SHARING / RECEIVING */
+
+.share-card, .received {
+  text-align: center;
+  padding: 26px 22px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--card-shadow);
+}
+.share-card { margin: 6px 0 18px; }
+
+.share-emoji, .received-emoji { margin: 0 0 8px; font-size: 46px; line-height: 1; }
+.share-title, .received-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.15;
+  overflow-wrap: break-word;
+}
+.share-place, .received-place { margin: 6px 0 0; color: var(--muted); font-weight: 700; }
+.share-count, .received-count {
+  margin: 12px 0 0;
+  display: inline-block;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 800;
+}
+:root[data-theme="night"] .share-count, :root[data-theme="night"] .received-count { color: var(--accent); }
+
+.share-help { margin: 0 0 18px; color: var(--muted); font-size: 15px; line-height: 1.45; }
+.link-box {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  resize: none;
+  word-break: break-all;
+  -webkit-user-select: all;
+  user-select: all;
+}
+.share-meta { margin: 8px 0 0; color: var(--muted); font-size: 13px; font-weight: 600; }
+
+.received { animation: rise .5s var(--ease); }
+.received-eyebrow {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.received-note {
+  margin: 12px 0 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 1.4;
+}
+.received-note:empty { display: none; }
+
 /* ----------------------------------------------------------- motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
