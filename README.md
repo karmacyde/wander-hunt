@@ -1,7 +1,7 @@
 # Wander — scavenger hunts for young explorers
 
-A tiny scavenger-hunt web app for children. Text one link, they pick who they
-are, pick where they're exploring, and go.
+A tiny scavenger-hunt web app for children. Text one link, they type their
+name, pick where they're exploring, and go.
 
 No accounts, no logins, no server, no analytics. Everything a child does stays
 on their own device, and after the first load the app works with no signal.
