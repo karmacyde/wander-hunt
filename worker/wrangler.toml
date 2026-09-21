@@ -1,0 +1,25 @@
+# Wander's photo group service.
+#
+# Everything here fits the Cloudflare free plan: 100,000 requests a day, 1 GB
+# in KV, 1,000 writes a day. No payment method is required, and it does not go
+# to sleep when nobody is using it.
+#
+#   npx wrangler login
+#   npx wrangler kv namespace create PHOTOS   # paste the printed id below
+#   npx wrangler deploy
+#
+# Then put the https://…workers.dev address it prints into GROUP_ENDPOINT in
+# ../config.js and commit. Until you do, the app behaves as if photo groups
+# do not exist.
+
+name = "wander-group"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# Replace the id with the one `wrangler kv namespace create PHOTOS` prints.
+[[kv_namespaces]]
+binding = "PHOTOS"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+[observability]
+enabled = true
