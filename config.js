@@ -17,7 +17,7 @@
  * trailing slash, and commit.
  */
 
-export const GROUP_ENDPOINT = "";
+export const GROUP_ENDPOINT = "https://wander-group.karmacyde.workers.dev";
 
 /**
  * Photo groups only appear once an endpoint is configured.

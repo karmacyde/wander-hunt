@@ -16,10 +16,9 @@ name = "wander-group"
 main = "worker.js"
 compatibility_date = "2026-01-01"
 
-# Replace the id with the one `wrangler kv namespace create PHOTOS` prints.
 [[kv_namespaces]]
 binding = "PHOTOS"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "a5dceac4d3b1481991eb651bfca25c6d"
 
 [observability]
 enabled = true
