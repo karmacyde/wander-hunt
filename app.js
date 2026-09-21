@@ -370,10 +370,41 @@ const overviewScreen = (setting) => (setting.interaction === "photo" ? "photo-al
 const nameForm = $("#name-form");
 const nameInput = $("#name-input");
 
+/**
+ * Asking who is exploring. A plain name box rather than a list of names,
+ * because the app should not assume whose phone it is on.
+ */
 function renderPlayer() {
-  nameForm.hidden = true;
-  nameInput.value = "";
-  $("#player-choices").hidden = false;
+  const existing = (state.player && state.player.name) || "";
+  nameInput.value = existing;
+  updateNameButton();
+
+  // Changing your name is a different question from being asked it the first
+  // time, and coming here by accident should not trap you on this screen.
+  const changing = Boolean(existing);
+  $("#player-prompt").textContent = changing ? "Change explorer" : "Who's exploring today?";
+  $("#name-cancel").hidden = !changing;
+
+  // A no-op on iPhone, which only raises the keyboard for a real tap, but it
+  // saves a click everywhere else.
+  try {
+    nameInput.focus({ preventScroll: true });
+  } catch {
+    nameInput.focus();
+  }
+}
+
+/** The name is the only thing on this screen, so the button waits for one. */
+function tidyName(raw) {
+  return String(raw || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 20)
+    .replace(/(^|[\s'-])(\p{L})/gu, (match, sep, letter) => sep + letter.toLocaleUpperCase());
+}
+
+function updateNameButton() {
+  $("#name-go").disabled = tidyName(nameInput.value).length === 0;
 }
 
 function setPlayer(name) {
@@ -388,31 +419,23 @@ function setPlayer(name) {
   }
 }
 
-$("#player-choices").addEventListener("click", (event) => {
-  const btn = event.target.closest("[data-player]");
-  if (!btn) return;
-  if (btn.dataset.player) {
-    setPlayer(btn.dataset.player);
-  } else {
-    $("#player-choices").hidden = true;
-    nameForm.hidden = false;
-    nameInput.focus();
-  }
-});
+nameInput.addEventListener("input", updateNameButton);
 
 nameForm.addEventListener("submit", (event) => {
   event.preventDefault();
   // Children type their names in all sorts of ways; tidy it up for them.
-  const name = nameInput.value
-    .trim()
-    .replace(/\s+/g, " ")
-    .slice(0, 20)
-    .replace(/(^|[\s'-])(\p{L})/gu, (match, sep, letter) => sep + letter.toLocaleUpperCase());
+  const name = tidyName(nameInput.value);
   if (!name) {
     nameInput.focus();
     return;
   }
+  nameInput.blur(); // put the keyboard away before the screen changes
   setPlayer(name);
+});
+
+$("#name-cancel").addEventListener("click", () => {
+  nameInput.blur();
+  goBack("home");
 });
 
 $("#player-chip").addEventListener("click", () => navigate("player"));

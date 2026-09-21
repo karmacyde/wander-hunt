@@ -351,21 +351,6 @@ img { display: block; max-width: 100%; }
 }
 .brand-sub { margin: 2px 0 0; color: var(--muted); font-weight: 600; }
 
-.choice-list { display: grid; gap: 12px; }
-.choice {
-  min-height: 64px;
-  padding: 0 22px;
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  font-size: 22px;
-  font-weight: 700;
-  text-align: left;
-  box-shadow: 0 2px 0 var(--line);
-  transition: transform .12s, background-color .15s;
-}
-.choice:active { transform: translateY(1px) scale(.98); }
-
 .name-form { display: grid; gap: 12px; margin-top: 4px; }
 .name-form label { font-weight: 700; }
 .name-form input {

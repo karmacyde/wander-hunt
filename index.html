@@ -32,18 +32,15 @@
         <p class="brand-sub">Scavenger hunts for young explorers</p>
       </div>
 
-      <h2 class="prompt">Who's exploring today?</h2>
-      <div class="choice-list" id="player-choices">
-        <button class="choice" type="button" data-player="Olive">Olive</button>
-        <button class="choice" type="button" data-player="Ziggy">Ziggy</button>
-        <button class="choice" type="button" data-player="">Someone else</button>
-      </div>
+      <h2 class="prompt" id="player-prompt">Who's exploring today?</h2>
 
-      <form class="name-form" id="name-form" hidden>
-        <label for="name-input">What's your first name?</label>
+      <form class="name-form" id="name-form">
+        <label for="name-input">Type your first name</label>
         <input id="name-input" type="text" autocomplete="given-name" autocapitalize="words"
-               autocorrect="off" spellcheck="false" enterkeyhint="done" maxlength="20" placeholder="Your name">
-        <button class="btn primary" type="submit">That's me</button>
+               autocorrect="off" spellcheck="false" enterkeyhint="done" maxlength="20"
+               placeholder="Your name">
+        <button class="btn primary big" type="submit" id="name-go" disabled>That's me</button>
+        <button class="btn quiet" type="button" id="name-cancel" hidden>Never mind</button>
       </form>
 
       <p class="privacy-line">Your hunt and photos stay on this device.</p>
