@@ -1,3 +1,7 @@
 .DS_Store
 *.log
 node_modules/
+# Wrangler's local working files. The account cache in particular is machine
+# state, not project state, and the OAuth token lives in ~/.wrangler anyway.
+.wrangler/
+worker/.wrangler/
