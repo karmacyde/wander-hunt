@@ -13,6 +13,13 @@
 const MAX_EDGE = 1400;
 const JPEG_QUALITY = 0.82;
 
+/* A photo shared with a group is only ever browsed on a phone, never printed,
+   so it goes up much smaller. At roughly 90 KB apiece a free gigabyte holds
+   some eleven thousand of them, which is the difference between this staying
+   free and quietly filling up. */
+const SHARE_EDGE = 720;
+const SHARE_QUALITY = 0.72;
+
 /** Decode an image File into a drawable element. */
 function decodeImage(file) {
   return new Promise((resolve, reject) => {
@@ -70,6 +77,36 @@ export async function processImageFile(file) {
   // Free the canvas memory eagerly; large captures on iPhone add up.
   canvas.width = canvas.height = 0;
   return { blob, width, height };
+}
+
+/**
+ * Re-encode an already-stored photo, smaller, for sharing with a group.
+ * Going through the canvas again also guarantees no EXIF rides along — no
+ * camera model, no timestamp, and above all no GPS coordinates.
+ */
+export async function processForShare(blob) {
+  if (!(blob instanceof Blob)) throw new Error("Not an image");
+  const img = await decodeImage(blob);
+  const srcW = img.naturalWidth || img.width;
+  const srcH = img.naturalHeight || img.height;
+  if (!srcW || !srcH) throw new Error("Empty image");
+
+  const scale = Math.min(1, SHARE_EDGE / Math.max(srcW, srcH));
+  const width = Math.max(1, Math.round(srcW * scale));
+  const height = Math.max(1, Math.round(srcH * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { alpha: false });
+  if (!ctx) throw new Error("Canvas unavailable");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, 0, 0, width, height);
+
+  const out = await canvasToBlob(canvas, "image/jpeg", SHARE_QUALITY);
+  canvas.width = canvas.height = 0;
+  return out;
 }
 
 /* ------------------------------------------------------- object URLs */

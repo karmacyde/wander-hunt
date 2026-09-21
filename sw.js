@@ -9,7 +9,7 @@
  * activate and the page shows an "Update ready" pill.
  */
 
-const CACHE = "wander-v4";
+const CACHE = "wander-v5";
 
 const SHELL = [
   "./",
@@ -18,6 +18,8 @@ const SHELL = [
   "./app.js",
   "./adventures.js",
   "./hunts.js",
+  "./group.js",
+  "./config.js",
   "./storage.js",
   "./photos.js",
   "./effects.js",

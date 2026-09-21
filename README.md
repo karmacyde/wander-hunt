@@ -119,6 +119,83 @@ The writing screen keeps a draft as you type, so a locked phone loses nothing.
 
 ---
 
+## Sharing photos with a group
+
+**Off by default, and genuinely absent unless you turn it on.** Wander ships
+with no group service configured, and while that is the case there is no group
+screen, no settings row and nothing on any hunt. Everything below is optional.
+
+### What it does
+
+Everyone doing the same hunt joins a group with an invite code. Once a child has
+photographed a discovery themselves, a strip appears under their own photo
+showing what everybody else found for the very same challenge.
+
+```
+FIND SOMETHING YELLOW
+  [ your photo ]   Yours
+WHAT OTHERS FOUND
+  [Ziggy]  [Mabel]  [Sam]
+```
+
+Nothing appears until they have found that thing themselves, so it stays a
+reward for looking rather than a shortcut past it. **Share with your group** on
+a finished journal sends that adventure's photos in one go.
+
+### Turning it on
+
+The service runs on Cloudflare's free plan: 100,000 requests a day, a gigabyte
+of storage, no payment method, and it does not go to sleep. It is one file in
+`worker/` that you own and can read.
+
+```bash
+cd worker
+npx wrangler login
+npx wrangler kv namespace create PHOTOS   # put the printed id in wrangler.toml
+npx wrangler deploy
+```
+
+Paste the `https://…workers.dev` address it prints into `GROUP_ENDPOINT` in
+`config.js`, commit, and the feature appears.
+
+Photos are re-encoded to 720px at about 90KB before being sent, separate from
+the full-size original kept on the phone. That is roughly 11,000 photos inside
+the free gigabyte, which a family will not reach.
+
+### The code is the key
+
+A group is protected by one eight-character code such as `XK4P-9TQM`. Anyone
+holding it can see every photo in the group and add their own, so it is worth
+treating like a key to the house.
+
+**The code never reaches the server.** The app sends `SHA-256(code)` and every
+stored key is built from that hash, so the store contains no codes at all. If it
+were emptied out in front of you it would give up the photographs it held and
+nothing else. There are 2^40 possible codes and the worker answers at most
+100,000 requests a day, so guessing is not a route in.
+
+### What is and is not shared
+
+- **Only what a child deliberately shares.** Nothing is uploaded in the
+  background, and a hunt that is never shared never leaves the phone.
+- **Not where they were.** Every photo is rebuilt through a canvas before it is
+  sent, which removes all EXIF: no GPS, no camera, no timestamp. Verified by
+  putting a GPS-carrying JPEG through the pipeline and checking the bytes.
+- **First names only**, which is all Wander has ever asked for.
+- **Removable.** Any child can take their own photos back off; whoever made the
+  group can remove anything. Removing deletes the bytes, not just a reference,
+  and leaves the copy on their own phone untouched.
+- **Leaving takes it with you.** Everyone else's photos come off the device.
+
+Out of signal, sharing queues and goes when a connection returns. If the service
+is down or never deployed, every other part of Wander carries on exactly as
+before.
+
+**A grown-up should be the one setting this up**, which is why it sits in
+Settings rather than anywhere a child lands by accident.
+
+---
+
 ## Where the photos go
 
 Photos never leave the phone.
@@ -173,7 +250,7 @@ When a new version is deployed the app shows a small "Update ready — tap to
 refresh" pill rather than changing under the child's feet.
 
 To change the app and have devices pick it up, edit the files and bump `CACHE`
-in `sw.js` (`wander-v4` → `wander-v5`).
+in `sw.js` (`wander-v5` → `wander-v6`).
 
 ### Add to Home Screen on iPhone
 
@@ -194,6 +271,9 @@ styles.css              design tokens, the three palettes, print styles
 app.js                  router, rendering, the unlock rule, dialogs, boot
 adventures.js           all the content — settings and their adventures
 hunts.js                hunts shared by link: encoding, decoding and validation
+group.js                talking to a photo group, and the offline upload queue
+config.js               the group service address — empty means the feature is off
+worker/worker.js        the optional group service (Cloudflare Workers + KV)
 storage.js              localStorage state, the IndexedDB photo store, migration
 photos.js               capture → resize → JPEG, object URLs, sharing, contact sheet
 effects.js              the night-sky completion effect and the optional chime
@@ -232,9 +312,14 @@ which service workers and the camera both require.
 
 > Your hunt and photos stay on this device.
 
-No accounts, no passwords, no email addresses, no cloud services, no analytics,
-no third-party code, no fonts or scripts loaded from anywhere. The only way a
-photo leaves the phone is if a child deliberately uses Save / Share.
+No accounts, no passwords, no email addresses, no analytics, no third-party
+code, no fonts or scripts loaded from anywhere.
+
+Out of the box a photo leaves the phone only when a child deliberately uses
+Save / Share. If you set up a photo group, photographs they choose to share also
+go to the service you deployed and nowhere else — see the section above for
+exactly what that means. Until then, and if you never set one up, the line in
+the app is literally true: the hunt and its photos stay on the device.
 
 A hunt shared by link is no exception. It rides in the URL fragment, which
 browsers never send to a server, so sharing one is between the two phones and

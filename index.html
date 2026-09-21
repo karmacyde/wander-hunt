@@ -79,7 +79,7 @@
         <svg class="chev" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#i-back"/></svg>
       </button>
 
-      <p class="privacy-line">Your hunt and photos stay on this device.</p>
+      <p class="privacy-line" id="home-privacy">Your hunt and photos stay on this device.</p>
     </div>
   </section>
 
@@ -358,6 +358,47 @@
     </footer>
   </section>
 
+  <!-- ============================================================ GROUP -->
+  <section class="screen" id="screen-group" hidden>
+    <header class="topbar">
+      <button class="icon-btn" type="button" data-nav="home" aria-label="Back">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg>
+      </button>
+      <span class="topbar-title" id="group-heading">Photo group</span>
+      <span></span>
+    </header>
+    <div class="screen-body" id="group-body"></div>
+    <footer class="actionbar" id="group-actions"></footer>
+  </section>
+
+  <!-- ================================================== EVERYONE'S FINDS -->
+  <section class="screen" id="screen-gallery" hidden>
+    <header class="topbar">
+      <button class="icon-btn" type="button" data-nav="photo-all" aria-label="Back">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg>
+      </button>
+      <span class="topbar-title">Everyone's finds</span>
+      <button class="icon-btn" type="button" id="gallery-refresh" aria-label="Look for new photos">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><use href="#i-refresh"/></svg>
+      </button>
+    </header>
+    <div class="screen-body">
+      <p class="gallery-sub" id="gallery-sub"></p>
+      <div id="gallery-list"></div>
+    </div>
+  </section>
+
+  <!-- ====================================================== PHOTO VIEWER -->
+  <dialog class="lightbox" id="dlg-viewer">
+    <form method="dialog">
+      <img id="viewer-img" alt="">
+      <p class="viewer-who" id="viewer-who"></p>
+      <p class="viewer-caption" id="viewer-caption"></p>
+      <button class="btn light" type="button" id="viewer-remove" hidden>Remove this photo</button>
+      <button class="btn light" type="submit" value="close">Close</button>
+    </form>
+  </dialog>
+
   <!-- =========================================================== DIALOGS -->
   <dialog class="sheet" id="dlg-safety">
     <form method="dialog">
@@ -384,6 +425,10 @@
       <div class="setting-row">
         <span>Make your own hunt</span>
         <button class="btn small" type="button" id="settings-make">Make one</button>
+      </div>
+      <div class="setting-row" id="settings-group-row" hidden>
+        <span id="settings-group-label">Photo group</span>
+        <button class="btn small" type="button" id="settings-group">Set up</button>
       </div>
       <div class="setting-row" id="settings-remove-row" hidden>
         <span id="settings-remove-label">Remove this hunt</span>
@@ -436,6 +481,8 @@
       <symbol id="i-tick" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 016.5 6h1.7l1.1-1.6A1.5 1.5 0 0110.5 3.7h3a1.5 1.5 0 011.2.7L15.8 6h1.7A2.5 2.5 0 0120 8.5v8A2.5 2.5 0 0117.5 19h-11A2.5 2.5 0 014 16.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3.4" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
       <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v11M8 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 11v7.5A1.5 1.5 0 007.5 20h9a1.5 1.5 0 001.5-1.5V11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 11-2.3-5.6M20 4v4.5h-4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 20a6 6 0 0112 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16.5 5.2a3.4 3.4 0 010 5.6M17.5 20a6 6 0 00-2-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
       <symbol id="i-cross" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
       <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 015.5 4H10a2 2 0 012 2v13a2 2 0 00-2-1.6H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M20 5.5A1.5 1.5 0 0018.5 4H14a2 2 0 00-2 2v13a2 2 0 012-1.6h6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
       <symbol id="i-sun" viewBox="0 0 48 48"><circle cx="24" cy="24" r="10" fill="#e9a23b"/><g stroke="#e9a23b" stroke-width="3" stroke-linecap="round"><path d="M24 3v6M24 39v6M3 24h6M39 24h6M9.2 9.2l4.2 4.2M34.6 34.6l4.2 4.2M38.8 9.2l-4.2 4.2M13.4 34.6l-4.2 4.2"/></g></symbol>

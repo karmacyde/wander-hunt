@@ -1296,6 +1296,149 @@ dialog.lightbox .btn { width: auto; min-width: 160px; }
 }
 .received-note:empty { display: none; }
 
+/* ============================================================== GROUP
+   Everything to do with sharing photographs. None of it renders unless a
+   group has been set up, which needs an endpoint in config.js.
+   ==================================================================== */
+
+.group-intro, .group-card { text-align: center; padding: 20px 18px 24px; }
+.group-icon { width: 44px; height: 44px; margin: 0 auto 10px; color: var(--accent); }
+.group-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.group-sub { margin: 6px 0 0; color: var(--muted); font-weight: 700; }
+.group-blurb { margin: 10px auto 0; max-width: 34em; color: var(--muted); font-size: 16px; line-height: 1.45; }
+
+.group-card {
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--card-shadow);
+  margin-bottom: 20px;
+}
+
+/* The plain account of what sharing actually does, before anyone opts in. */
+.group-facts { display: grid; gap: 10px; margin: 4px 0 22px; }
+.group-facts p {
+  margin: 0;
+  padding: 13px 15px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 1.45;
+}
+.group-facts strong { display: block; margin-bottom: 2px; }
+.group-facts .group-grownup {
+  background: var(--accent-wash);
+  border-color: transparent;
+  font-weight: 700;
+  text-align: center;
+}
+
+.group-warn {
+  margin: 10px 0 0;
+  padding: 13px 15px;
+  border-radius: var(--radius-sm);
+  background: #fdf1e2;
+  color: #7a4a18;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+:root[data-theme="night"] .group-warn { background: #33270f; color: #f0c98a; }
+
+.code-display, .code-input {
+  width: 100%;
+  min-height: 62px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.code-display { -webkit-user-select: all; user-select: all; }
+.code-input:focus { border-color: var(--accent); outline: none; }
+.code-input::placeholder { letter-spacing: .12em; color: color-mix(in srgb, var(--muted) 55%, transparent); }
+
+/* What other people found, under your own photo */
+.others { width: min(100%, 340px); margin-top: 18px; }
+.others-head {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.others-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  /* Wide rows scroll inside themselves; the page never scrolls sideways. */
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.others-strip::-webkit-scrollbar { height: 0; }
+
+.other-tile {
+  flex: none;
+  width: 84px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: transform .12s;
+}
+.other-tile:active { transform: scale(.95); }
+.other-tile img, .other-pending {
+  display: block;
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.other-pending { animation: pulse-soft 1.6s ease-in-out infinite; }
+@keyframes pulse-soft { 0%, 100% { opacity: .5; } 50% { opacity: .9; } }
+.other-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.other-tile.is-mine img { border-color: var(--accent); border-width: 2px; }
+.other-tile.is-mine .other-name { color: var(--accent); }
+
+/* Everyone's finds */
+.gallery-sub { margin: 8px 0 18px; color: var(--muted); font-weight: 700; }
+.gallery-block { margin-bottom: 22px; }
+.gallery-title {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.viewer-who { margin: 0; font-weight: 700; font-size: 17px; }
+.viewer-caption { margin: 0; font-family: var(--font-display); font-size: 16px; color: rgba(255,255,255,.75); text-align: center; }
+.viewer-caption:empty { display: none; }
+
 /* ----------------------------------------------------------- motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }

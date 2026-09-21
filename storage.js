@@ -18,8 +18,10 @@ const STATE_KEY = "wander.v2";
 const LEGACY_STATE_KEY = "wander.v1";
 const DRAFT_KEY = "wander.draft";
 const DB_NAME = "wander-photos";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // v2 added the outbox and the group photo cache
 const STORE = "photos";
+const OUTBOX = "outbox"; // uploads waiting for a signal
+const GROUP_CACHE = "groupPhotos"; // other people's photos, kept for offline
 
 /* The two adventures a v1 save becomes. */
 export const V1_DAY_ADVENTURE = "out-and-about-1";
@@ -46,6 +48,7 @@ function defaultState() {
     highestDateSeen: null, // guards against the clock being wound backwards
     progress: {}, // { [settingId]: { adventures: { [adventureId]: adventureState } } }
     custom: {}, // { [huntId]: hunt } — hunts that arrived in a link
+    group: null, // { code, groupId, member, name, owner } once one is joined
     noticedStorageIssue: false
   };
 }
@@ -138,7 +141,8 @@ export function loadState() {
       ...current,
       settings: { ...base.settings, ...(current.settings || {}) },
       progress: current.progress && typeof current.progress === "object" ? current.progress : {},
-      custom: current.custom && typeof current.custom === "object" ? current.custom : {}
+      custom: current.custom && typeof current.custom === "object" ? current.custom : {},
+      group: current.group && typeof current.group === "object" ? current.group : null
     };
     memoryState = state;
     return { state, migratedFromV1: false };
@@ -222,8 +226,12 @@ function openDB() {
       return;
     }
     request.onupgradeneeded = () => {
+      // Creating a store leaves existing ones alone, so an upgrade never
+      // costs anybody their photographs.
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      if (!db.objectStoreNames.contains(OUTBOX)) db.createObjectStore(OUTBOX);
+      if (!db.objectStoreNames.contains(GROUP_CACHE)) db.createObjectStore(GROUP_CACHE);
     };
     request.onsuccess = () => {
       const db = request.result;
@@ -238,16 +246,16 @@ function openDB() {
   return dbPromise;
 }
 
-function withStore(mode, run) {
+function withStore(mode, run, name = STORE) {
   return openDB().then((db) => new Promise((resolve, reject) => {
     let tx;
     try {
-      tx = db.transaction(STORE, mode);
+      tx = db.transaction(name, mode);
     } catch (err) {
       reject(err);
       return;
     }
-    const store = tx.objectStore(STORE);
+    const store = tx.objectStore(name);
     let result;
     try {
       result = run(store);
@@ -330,6 +338,89 @@ export function migratePhotoKeys(adventureFor) {
       }))
       .then(() => stale.length);
   });
+}
+
+/* ------------------------------------------------------------- outbox
+
+   Photos waiting to be shared. A hunt happens in a field, and a field often
+   has no signal, so sharing queues here and flushes when there is one. */
+
+export function queueUpload(key, job) {
+  return withStore("readwrite", (store) => store.put(job, key), OUTBOX);
+}
+
+export function takeQueued() {
+  return openDB().then((db) => new Promise((resolve, reject) => {
+    const jobs = [];
+    let tx;
+    try {
+      tx = db.transaction(OUTBOX, "readonly");
+    } catch (err) {
+      reject(err);
+      return;
+    }
+    const request = tx.objectStore(OUTBOX).openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (cursor) {
+        jobs.push({ key: cursor.key, job: cursor.value });
+        cursor.continue();
+      } else {
+        resolve(jobs);
+      }
+    };
+    request.onerror = () => reject(request.error);
+  }));
+}
+
+export function unqueueUpload(key) {
+  return withStore("readwrite", (store) => store.delete(key), OUTBOX);
+}
+
+export function clearQueue() {
+  return withStore("readwrite", (store) => store.clear(), OUTBOX);
+}
+
+/* ------------------------------------------------- other people's photos
+
+   Cached so the strip still shows what it last saw with no signal. Wiped
+   when a group is left. */
+
+export function putGroupPhoto(key, record) {
+  return withStore("readwrite", (store) => store.put(record, key), GROUP_CACHE);
+}
+
+export function getAllGroupPhotos() {
+  return openDB().then((db) => new Promise((resolve, reject) => {
+    const map = new Map();
+    let tx;
+    try {
+      tx = db.transaction(GROUP_CACHE, "readonly");
+    } catch (err) {
+      reject(err);
+      return;
+    }
+    const request = tx.objectStore(GROUP_CACHE).openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (cursor) {
+        map.set(cursor.key, cursor.value);
+        cursor.continue();
+      } else {
+        resolve(map);
+      }
+    };
+    request.onerror = () => reject(request.error);
+  }));
+}
+
+export function deleteGroupPhoto(key) {
+  return withStore("readwrite", (store) => store.delete(key), GROUP_CACHE);
+}
+
+/** Leaving a group takes everything it put on this device with it. */
+export function clearGroupCache() {
+  return withStore("readwrite", (store) => store.clear(), GROUP_CACHE);
 }
 
 /** Ask the browser not to evict our data when tidying up. Best effort. */

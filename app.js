@@ -34,6 +34,8 @@ import {
   EMOJI_CHOICES, LIMITS, decodeHunt, huntLink, settingFromHunt,
   newHuntId, takeHuntFragment, validate as validateHunt
 } from "./hunts.js";
+import * as group from "./group.js";
+import { processForShare } from "./photos.js";
 
 const $ = (sel) => document.querySelector(sel);
 const html = (strings, ...values) => strings.reduce((out, s, i) => out + s + (values[i] ?? ""), "");
@@ -260,17 +262,19 @@ function niceDate(iso) {
 
 const PALETTE_COLORS = { home: "#ece6d8", day: "#f4efe4", night: "#0b1220" };
 const PARENT = {
-  player: "home", setting: "home", shelf: "home", builder: "home",
+  player: "home", setting: "home", shelf: "home", builder: "home", group: "home",
   photo: "setting", "photo-all": "photo",
   tick: "setting", "tick-all": "tick",
-  share: "builder"
+  share: "builder",
+  gallery: "photo-all"
 };
 const navStack = [];
 let currentScreen = null;
 
 function paletteFor(screen) {
   if (screen === "home" || screen === "player" || screen === "shelf"
-      || screen === "builder" || screen === "share" || screen === "received") {
+      || screen === "builder" || screen === "share" || screen === "received"
+      || screen === "group" || screen === "gallery") {
     return "home";
   }
   const setting = getSetting(openSettingId);
@@ -300,6 +304,8 @@ function render(screen) {
     case "tick": renderTickHunt(); break;
     case "tick-all": renderTickAll(); break;
     case "builder": renderBuilder(); break;
+    case "group": renderGroup(); break;
+    case "gallery": renderGallery(); break;
     case "share": renderShare(); break;
     case "received":
       if (receivedHunt) showReceived();
@@ -456,6 +462,12 @@ function renderHome() {
         </span>
       </button>`;
   }).join("");
+
+  // The promise on the home screen has to stay true. Once photographs can be
+  // shared, saying they never leave the device would be a lie by omission.
+  $("#home-privacy").textContent = inGroup()
+    ? `Your hunt stays on this device. Photos you share go to ${state.group.name || "your group"}.`
+    : "Your hunt and photos stay on this device.";
 
   const shelfBtn = $("#home-shelf");
   shelfBtn.hidden = stats.finished === 0;
@@ -618,7 +630,8 @@ function renderPhotoHunt() {
         <span class="note-label">Add a note</span>
         <input id="photo-note" type="text" maxlength="80" enterkeyhint="done"
                placeholder="What was it? Where did you find it?" value="${esc(note)}">
-      </label>`;
+      </label>
+      ${othersStripHTML(adventure.id, item.id)}`;
     const hasNext = Boolean(nextIncomplete(adventure, p, item.id));
     photoActions.innerHTML = html`
       <button class="btn primary big" type="button" id="photo-next">${hasNext ? "Next discovery" : "See your journal"}</button>
@@ -809,12 +822,20 @@ function renderPhotoAll() {
   const anyPhotos = allItems(adventure).some((item) => p.found[item.id] && photos.has(photoKey(adventure.id, item.id)));
   $("#photo-all-actions").innerHTML = anyPhotos
     ? html`
-      <button class="btn primary" type="button" id="share-journal"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#i-share"/></svg>Share journal</button>
-      <button class="btn" type="button" id="print-journal">Print or save as PDF</button>`
+      ${inGroup() ? html`<button class="btn primary" type="button" id="share-group"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#i-people"/></svg>Share with your group</button>` : ""}
+      <div class="btn-row">
+        <button class="btn${inGroup() ? "" : " primary"}" type="button" id="share-journal"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#i-share"/></svg>Save / Share</button>
+        <button class="btn" type="button" id="print-journal">Print</button>
+      </div>
+      ${inGroup() ? html`<button class="btn quiet" type="button" id="open-gallery">See everyone's finds</button>` : ""}`
     : "";
   if (anyPhotos) {
     $("#share-journal").addEventListener("click", shareJournal);
     $("#print-journal").addEventListener("click", printJournal);
+    if (inGroup()) {
+      $("#share-group").addEventListener("click", (event) => shareAdventureWithGroup(event.currentTarget));
+      $("#open-gallery").addEventListener("click", () => navigate("gallery"));
+    }
   }
 }
 
@@ -1578,6 +1599,534 @@ async function removeCustomHunt(settingId) {
 }
 
 /* ================================================================
+   9. The photo group
+   ================================================================ */
+
+/*
+ * The only part of Wander that leaves the device, and only if somebody has
+ * deployed the worker in /worker and filled in config.js. While that is empty,
+ * `group.groupsEnabled()` is false and none of this appears anywhere.
+ *
+ * The invite code is the whole access model. It is kept on the device so it
+ * can be shown again, but what travels is SHA-256(code) — see group.js.
+ */
+
+const groupPhotos = new Map(); // "<adv>:<item>:<member>" → { blob, name, caption, at }
+let groupIndex = []; // the last listing we saw
+let groupBusy = false;
+let lastGroupSync = 0;
+
+const inGroup = () => Boolean(group.groupsEnabled() && state.group && state.group.groupId);
+const groupKey = (p) => `${p.adventure}:${p.item}:${p.member}`;
+const isMine = (p) => Boolean(state.group && p.member === state.group.member);
+
+/** Photos other people shared for this exact challenge. */
+function othersFor(adventureId, itemId) {
+  if (!inGroup()) return [];
+  return groupIndex.filter((p) => p.adventure === adventureId && p.item === itemId && !isMine(p));
+}
+
+function groupMessage(err) {
+  if (!err || !err.kind) return "Something went wrong. Try again in a minute.";
+  if (err.kind === "offline") return "No signal just now. It'll go when you're back online.";
+  if (err.kind === "full") return "This group is full. Remove some photos to add more.";
+  if (err.kind === "server") return "The group isn't answering. Try again later.";
+  return "That didn't work. Try again.";
+}
+
+/* --------------------------------------------------- joining and leaving */
+
+function openGroup() {
+  navigate("group");
+}
+
+function renderGroup() {
+  const body = $("#group-body");
+  const actions = $("#group-actions");
+
+  if (!group.groupsEnabled()) {
+    goBack("home");
+    return;
+  }
+
+  if (inGroup()) {
+    const g = state.group;
+    const mine = groupIndex.filter(isMine).length;
+    $("#group-heading").textContent = g.name || "Photo group";
+    body.innerHTML = html`
+      <div class="group-card">
+        <svg class="group-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-people"/></svg>
+        <h1 class="group-name">${esc(g.name || "Our group")}</h1>
+        <p class="group-sub">${groupIndex.length} ${plural(groupIndex.length, "photo", "photos")} shared · ${mine} of them yours</p>
+      </div>
+      <label class="field">
+        <span class="field-label">The code to let someone in</span>
+        <input class="code-display" id="group-code" type="text" readonly value="${esc(group.formatCode(g.code))}">
+      </label>
+      <p class="group-warn">Anyone with this code can see every photo in the group, and add their own. Treat it like a key to the house.</p>
+      <p class="sheet-text small">Photos you share are copied to your own little corner of the internet. You can take yours back off at any time.</p>`;
+    actions.innerHTML = html`
+      <button class="btn primary" type="button" id="group-share-code">Share the code</button>
+      <div class="btn-row">
+        <button class="btn" type="button" id="group-open-gallery">See everyone's</button>
+        <button class="btn danger" type="button" id="group-leave">Leave group</button>
+      </div>`;
+    $("#group-share-code").addEventListener("click", shareGroupCode);
+    $("#group-open-gallery").addEventListener("click", () => navigate("gallery"));
+    $("#group-leave").addEventListener("click", confirmLeaveGroup);
+    return;
+  }
+
+  $("#group-heading").textContent = "Photo group";
+  body.innerHTML = html`
+    <div class="group-intro">
+      <svg class="group-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-people"/></svg>
+      <h1 class="group-name">Share what you find</h1>
+      <p class="group-blurb">A photo group lets everyone doing the same hunt see each other's discoveries. Find something yellow, then see what everyone else found for it.</p>
+    </div>
+    <div class="group-facts">
+      <p><strong>Photos you share are copied online.</strong> Only people you give the code to can see them, and only the ones you choose to share go anywhere.</p>
+      <p><strong>Where you were is not shared.</strong> Every photo is rebuilt before it is sent, which removes the location and everything else the camera recorded.</p>
+      <p><strong>You can undo it.</strong> Take any of your photos back off, or leave the group and everything of yours goes with you.</p>
+      <p class="group-grownup">A grown-up should be the one setting this up.</p>
+    </div>
+    <label class="field">
+      <span class="field-label">Got a code already?</span>
+      <input class="code-input" id="join-code" type="text" inputmode="latin" autocapitalize="characters"
+             autocorrect="off" spellcheck="false" maxlength="9" placeholder="XK4P-9TQM">
+    </label>
+    <p class="builder-error" id="group-error" hidden></p>`;
+  actions.innerHTML = html`
+    <button class="btn primary big" type="button" id="group-join">Join that group</button>
+    <button class="btn" type="button" id="group-create">Make a new group</button>`;
+
+  $("#join-code").addEventListener("input", (event) => {
+    // Show it grouped as they type, without fighting the cursor.
+    const raw = event.target.value.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 8);
+    event.target.value = raw.length > 4 ? `${raw.slice(0, 4)}-${raw.slice(4)}` : raw;
+  });
+  $("#group-join").addEventListener("click", joinGroup);
+  $("#group-create").addEventListener("click", createGroup);
+}
+
+function groupError(message) {
+  const el = $("#group-error");
+  if (!el) {
+    toast(message);
+    return;
+  }
+  el.textContent = message;
+  el.hidden = false;
+}
+
+async function withGroupBusy(button, label, work) {
+  if (groupBusy) return;
+  groupBusy = true;
+  const original = button ? button.textContent : "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = label;
+  }
+  try {
+    await work();
+  } finally {
+    groupBusy = false;
+    if (button) {
+      button.disabled = false;
+      button.textContent = original;
+    }
+  }
+}
+
+async function createGroup() {
+  await withGroupBusy($("#group-create"), "Making it…", async () => {
+    const code = group.newCode();
+    const member = (state.group && state.group.member) || group.newMemberId();
+    try {
+      const groupId = await group.groupIdFor(code);
+      const info = await group.createOrJoin(groupId, {
+        name: `${possessive(playerName())} group`,
+        member
+      });
+      state.group = { code, groupId, member, name: info.name, owner: info.owner };
+      save();
+      groupIndex = [];
+      await syncGroup();
+      renderGroup();
+      toast("Group made. Share the code to let others in.", 3400);
+    } catch (err) {
+      groupError(groupMessage(err));
+    }
+  });
+}
+
+async function joinGroup() {
+  const typed = $("#join-code").value;
+  const code = group.normaliseCode(typed);
+  if (!code) {
+    groupError("That code doesn't look right. It's eight letters and numbers.");
+    return;
+  }
+  await withGroupBusy($("#group-join"), "Looking…", async () => {
+    const member = (state.group && state.group.member) || group.newMemberId();
+    try {
+      const groupId = await group.groupIdFor(code);
+      const info = await group.lookup(groupId);
+      if (!info) {
+        groupError("No group with that code. Check it and try again.");
+        return;
+      }
+      state.group = { code, groupId, member, name: info.name, owner: info.owner };
+      save();
+      groupIndex = [];
+      await syncGroup();
+      renderGroup();
+      toast(`Joined ${info.name}.`);
+    } catch (err) {
+      groupError(groupMessage(err));
+    }
+  });
+}
+
+async function shareGroupCode() {
+  const g = state.group;
+  if (!g) return;
+  const text = `Join my Wander photo group with the code ${group.formatCode(g.code)} — ${window.location.origin}${window.location.pathname}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: "Wander photo group", text });
+      return;
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Code copied.");
+  } catch {
+    $("#group-code").select();
+    toast("Press and hold the code to copy it.");
+  }
+}
+
+function confirmLeaveGroup() {
+  const g = state.group;
+  if (!g) return;
+  $("#reset-title").textContent = `Leave ${g.name || "the group"}?`;
+  $("#reset-text").textContent =
+    "Everyone else's photos come off this device. Anything you shared stays in the group unless you remove it first, and you can come back with the same code.";
+  $("#reset-hold").dataset.adventure = "";
+  $("#reset-hold").dataset.custom = "";
+  $("#reset-hold").dataset.leaveGroup = "1";
+  $("#reset-hold .hold-label").textContent = "Press and hold to leave";
+  openDialog($("#dlg-reset"));
+}
+
+async function leaveGroup() {
+  state.group = null;
+  save();
+  groupIndex = [];
+  for (const key of groupPhotos.keys()) releasePhotoURL(`grp:${key}`);
+  groupPhotos.clear();
+  try {
+    await store.clearGroupCache();
+    await store.clearQueue();
+  } catch {
+    /* nothing cached */
+  }
+  $("#dlg-reset").close();
+  goBack("home");
+  toast("You've left the group.");
+}
+
+/* ------------------------------------------------------------- syncing */
+
+/** Refresh the listing and pull down any photos we have not cached yet. */
+async function syncGroup({ force = false } = {}) {
+  if (!inGroup()) return;
+  if (!force && Date.now() - lastGroupSync < 30000) return; // don't hammer it
+  lastGroupSync = Date.now();
+  try {
+    const rows = await group.list(state.group.groupId);
+    groupIndex = rows;
+    await fetchMissingGroupPhotos(rows);
+  } catch (err) {
+    // Offline is entirely normal out in a field; keep what we cached.
+    if (!err || err.kind !== "offline") console.warn("Group sync failed", err);
+  }
+}
+
+async function fetchMissingGroupPhotos(rows) {
+  const wanted = rows.filter((p) => !isMine(p) && !groupPhotos.has(groupKey(p))).slice(0, 40);
+  for (const photo of wanted) {
+    try {
+      const blob = await group.download(state.group.groupId, photo);
+      const record = { blob, name: photo.name, caption: photo.caption, at: photo.at };
+      groupPhotos.set(groupKey(photo), record);
+      try {
+        await store.putGroupPhoto(groupKey(photo), record);
+      } catch {
+        /* cache is a convenience, not a requirement */
+      }
+    } catch {
+      /* one missing photo must not stop the rest */
+    }
+  }
+}
+
+/* ----------------------------------------------------------- uploading */
+
+/**
+ * Share a whole adventure in one go. One deliberate action suits a
+ * seven-year-old far better than approving sixteen photographs one at a time.
+ */
+async function shareAdventureWithGroup(button) {
+  const ctx = openContext();
+  if (!ctx || !inGroup()) return;
+  const { adventure, p } = ctx;
+
+  const jobs = [];
+  for (const item of allItems(adventure)) {
+    const found = p.found[item.id];
+    if (!found) continue;
+    const record = photos.get(photoKey(adventure.id, item.id));
+    if (!record || !record.blob) continue;
+    jobs.push({ item, blob: record.blob, caption: found.note || "" });
+  }
+  if (!jobs.length) {
+    toast("Nothing to share yet.");
+    return;
+  }
+
+  await withGroupBusy(button, "Sharing…", async () => {
+    let sent = 0;
+    let queued = 0;
+    // Once the network has clearly gone, stop waiting for it. Each attempt
+    // costs a twelve-second timeout, and sixteen of those is three minutes of
+    // a child watching a spinner for no reason.
+    let networkGone = false;
+    for (const job of jobs) {
+      const payload = {
+        adventure: adventure.id,
+        item: job.item.id,
+        member: state.group.member,
+        name: playerName(),
+        caption: job.caption
+      };
+      let small;
+      try {
+        small = await processForShare(job.blob);
+      } catch {
+        continue; // a photo we cannot re-encode is simply not shared
+      }
+      const queueIt = async () => {
+        try {
+          await store.queueUpload(`${adventure.id}:${job.item.id}`, { ...payload, blob: small });
+          queued += 1;
+        } catch {
+          /* nothing more we can do */
+        }
+      };
+      if (networkGone) {
+        await queueIt();
+        continue;
+      }
+      try {
+        await group.upload(state.group.groupId, { ...payload, blob: small });
+        sent += 1;
+      } catch (err) {
+        if (err && (err.kind === "offline" || err.kind === "server")) {
+          networkGone = true;
+          await queueIt();
+        } else if (err && err.kind === "full") {
+          toast(groupMessage(err), 4000);
+          break;
+        }
+      }
+    }
+    await syncGroup({ force: true });
+    renderPhotoAll();
+    if (sent && queued) toast(`Shared ${sent}. ${queued} will go when you're back online.`, 4000);
+    else if (sent) toast(`Shared ${sent} ${plural(sent, "photo", "photos")} with the group.`);
+    else if (queued) toast("No signal. They'll go when you're back online.", 4000);
+    else toast("Couldn't share those just now.");
+  });
+}
+
+/** Send anything that was waiting for a signal. Runs at boot and on reconnect. */
+async function flushOutbox() {
+  if (!inGroup() || !navigator.onLine) return;
+  let jobs = [];
+  try {
+    jobs = await store.takeQueued();
+  } catch {
+    return;
+  }
+  if (!jobs.length) return;
+
+  let sent = 0;
+  for (const { key, job } of jobs) {
+    if (!job || !job.blob) {
+      await store.unqueueUpload(key).catch(() => {});
+      continue;
+    }
+    try {
+      await group.upload(state.group.groupId, job);
+      await store.unqueueUpload(key);
+      sent += 1;
+    } catch (err) {
+      // Still no signal: leave it queued and stop, rather than churning.
+      if (err && err.kind === "offline") break;
+      // Anything the server will never accept is dropped, not retried forever.
+      if (err && err.kind === "refused") await store.unqueueUpload(key).catch(() => {});
+    }
+  }
+  if (sent) {
+    await syncGroup({ force: true });
+    toast(`${sent} ${plural(sent, "photo", "photos")} shared with the group.`);
+    if (currentScreen === "photo" || currentScreen === "photo-all") render(currentScreen);
+  }
+}
+
+window.addEventListener("online", () => { flushOutbox(); });
+
+/* ------------------------------------------------------------- viewing */
+
+/** The strip of what other people found for the same thing. */
+function othersStripHTML(adventureId, itemId) {
+  const others = othersFor(adventureId, itemId);
+  if (!others.length) return "";
+  const tiles = others.slice(0, 12).map((p) => {
+    const record = groupPhotos.get(groupKey(p));
+    const src = record ? urlForPhoto(`grp:${groupKey(p)}`, record.blob) : "";
+    return html`
+      <button class="other-tile" type="button" data-other="${esc(groupKey(p))}">
+        ${src ? html`<img alt="" src="${src}">` : html`<span class="other-pending" aria-hidden="true"></span>`}
+        <span class="other-name">${esc(p.name || "Someone")}</span>
+      </button>`;
+  }).join("");
+  return html`
+    <div class="others">
+      <p class="others-head">What others found</p>
+      <div class="others-strip">${tiles}</div>
+    </div>`;
+}
+
+function openGroupPhoto(key) {
+  const row = groupIndex.find((p) => groupKey(p) === key);
+  if (!row) return;
+
+  // Your own shared photos are never downloaded back — the full-size original
+  // is already on the device, so the viewer reads from there instead.
+  let src = "";
+  if (isMine(row)) {
+    const own = photos.get(photoKey(row.adventure, row.item));
+    if (own && own.blob) src = urlForPhoto(photoKey(row.adventure, row.item), own.blob);
+  } else {
+    const record = groupPhotos.get(key);
+    if (record && record.blob) src = urlForPhoto(`grp:${key}`, record.blob);
+  }
+  if (!src) return;
+
+  $("#viewer-img").src = src;
+  $("#viewer-img").alt = row.caption || `Found by ${row.name || "someone"}`;
+  $("#viewer-who").textContent = isMine(row)
+    ? "Your photo, shared with the group"
+    : (row.name ? `Found by ${row.name}` : "Found by someone");
+  $("#viewer-caption").textContent = row.caption || "";
+  $("#viewer-caption").hidden = !row.caption;
+
+  // You can always remove your own; whoever made the group can remove any.
+  const canRemove = isMine(row) || (state.group && state.group.owner === state.group.member);
+  const removeBtn = $("#viewer-remove");
+  removeBtn.hidden = !canRemove;
+  removeBtn.onclick = canRemove ? () => removeGroupPhoto(row) : null;
+  openDialog($("#dlg-viewer"));
+}
+
+async function removeGroupPhoto(row) {
+  if (!inGroup()) return;
+  try {
+    await group.remove(state.group.groupId, row, state.group.member);
+    const key = groupKey(row);
+    groupIndex = groupIndex.filter((p) => groupKey(p) !== key);
+    groupPhotos.delete(key);
+    releasePhotoURL(`grp:${key}`);
+    await store.deleteGroupPhoto(key).catch(() => {});
+    $("#dlg-viewer").close();
+    toast("Photo removed from the group.");
+    if (currentScreen === "gallery") renderGallery();
+    else if (currentScreen === "photo") renderPhotoHunt();
+  } catch (err) {
+    toast(groupMessage(err));
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const tile = event.target.closest("[data-other]");
+  if (tile) openGroupPhoto(tile.dataset.other);
+});
+
+/* ------------------------------------------------------------ gallery */
+
+function renderGallery() {
+  if (!inGroup()) {
+    goBack("home");
+    return;
+  }
+  const byItem = new Map();
+  for (const p of groupIndex) {
+    const key = `${p.adventure}:${p.item}`;
+    if (!byItem.has(key)) byItem.set(key, []);
+    byItem.get(key).push(p);
+  }
+
+  $("#gallery-sub").textContent = groupIndex.length
+    ? `${groupIndex.length} ${plural(groupIndex.length, "photo", "photos")} in ${state.group.name || "the group"}`
+    : "";
+
+  if (!groupIndex.length) {
+    $("#gallery-list").innerHTML = html`<p class="empty-note">Nothing shared yet. Finish an adventure and share it.</p>`;
+    return;
+  }
+
+  const blocks = [...byItem.entries()].map(([key, rows]) => {
+    const [adventureId, itemId] = key.split(":");
+    const found = findAdventure(adventureId);
+    const item = found ? findItem(found.adventure, itemId) : null;
+    const title = item ? item.title : "A discovery";
+    const tiles = rows.map((p) => {
+      const record = groupPhotos.get(groupKey(p));
+      const src = isMine(p)
+        ? (() => {
+            const own = photos.get(photoKey(p.adventure, p.item));
+            return own ? urlForPhoto(photoKey(p.adventure, p.item), own.blob) : "";
+          })()
+        : (record ? urlForPhoto(`grp:${groupKey(p)}`, record.blob) : "");
+      return html`
+        <button class="other-tile${isMine(p) ? " is-mine" : ""}" type="button" data-other="${esc(groupKey(p))}">
+          ${src ? html`<img alt="" src="${src}">` : html`<span class="other-pending" aria-hidden="true"></span>`}
+          <span class="other-name">${isMine(p) ? "You" : esc(p.name || "Someone")}</span>
+        </button>`;
+    }).join("");
+    return html`
+      <section class="gallery-block">
+        <h2 class="gallery-title">${esc(title)}</h2>
+        <div class="others-strip">${tiles}</div>
+      </section>`;
+  }).join("");
+  $("#gallery-list").innerHTML = blocks;
+}
+
+$("#gallery-refresh").addEventListener("click", async () => {
+  const btn = $("#gallery-refresh");
+  btn.disabled = true;
+  await syncGroup({ force: true });
+  renderGallery();
+  btn.disabled = false;
+});
+
+/* ================================================================
    7. Dialogs, toasts, service worker, boot
    ================================================================ */
 
@@ -1613,6 +2162,9 @@ function showSafety(setting) {
   $("#safety-blurb").hidden = !ctx.adventure.blurb;
   $("#safety-text").textContent = setting.safety;
   $("#safety-privacy").hidden = setting.interaction !== "photo";
+  $("#safety-privacy").textContent = inGroup()
+    ? `Your photos stay on this device unless you share them with ${state.group.name || "your group"}.`
+    : "Your hunt and photos stay on this device.";
   const onClose = () => {
     dialog.removeEventListener("close", onClose);
     ctx.p.safetyShown = true;
@@ -1638,6 +2190,12 @@ function openSettings(adventureId) {
   settingsCustomId = custom ? custom.id : null;
   $("#settings-remove-row").hidden = !custom;
   if (custom) $("#settings-remove-label").textContent = `Remove “${custom.title}”`;
+  // The group row only exists once somebody has deployed the worker.
+  $("#settings-group-row").hidden = !group.groupsEnabled();
+  if (group.groupsEnabled()) {
+    $("#settings-group-label").textContent = inGroup() ? (state.group.name || "Photo group") : "Photo group";
+    $("#settings-group").textContent = inGroup() ? "Open" : "Set up";
+  }
   $("#settings-install").hidden = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
   openDialog(dialog);
 }
@@ -1651,6 +2209,11 @@ $("#settings-sound").addEventListener("change", (event) => {
 $("#settings-player").addEventListener("click", () => {
   $("#dlg-settings").close();
   navigate("player");
+});
+
+$("#settings-group").addEventListener("click", () => {
+  $("#dlg-settings").close();
+  openGroup();
 });
 
 $("#settings-make").addEventListener("click", () => {
@@ -1669,6 +2232,7 @@ $("#settings-remove").addEventListener("click", () => {
     : "This takes the hunt off this device. If you still have the link, you can always open it again.";
   $("#reset-hold").dataset.adventure = "";
   $("#reset-hold").dataset.custom = settingId;
+  $("#reset-hold").dataset.leaveGroup = "";
   $("#reset-hold .hold-label").textContent = "Press and hold to remove";
   openDialog($("#dlg-reset"));
 });
@@ -1685,6 +2249,7 @@ $("#settings-reset").addEventListener("click", () => {
     : `This clears every ticked mission in this adventure so you can explore it again. Your other adventures are not touched.`;
   $("#reset-hold").dataset.adventure = adventureId;
   $("#reset-hold").dataset.custom = "";
+  $("#reset-hold").dataset.leaveGroup = "";
   $("#reset-hold .hold-label").textContent = "Press and hold to start again";
   openDialog($("#dlg-reset"));
 });
@@ -1709,7 +2274,8 @@ function beginHold(event) {
   window.clearTimeout(holdTimer);
   holdTimer = window.setTimeout(() => {
     endHold();
-    if (holdBtn.dataset.custom) removeCustomHunt(holdBtn.dataset.custom);
+    if (holdBtn.dataset.leaveGroup) leaveGroup();
+    else if (holdBtn.dataset.custom) removeCustomHunt(holdBtn.dataset.custom);
     else performReset(holdBtn.dataset.adventure);
     $("#dlg-reset").close();
   }, 1200);
@@ -1916,6 +2482,22 @@ async function boot() {
   }
 
   registerServiceWorker();
+
+  // The group is the only part that needs a network, so it comes last and
+  // never blocks the app from opening.
+  if (inGroup()) {
+    try {
+      const cached = await store.getAllGroupPhotos();
+      cached.forEach((record, key) => { if (record && record.blob) groupPhotos.set(key, record); });
+    } catch {
+      /* the cache is a convenience */
+    }
+    flushOutbox().then(() => syncGroup()).then(() => {
+      if (currentScreen === "photo" || currentScreen === "gallery" || currentScreen === "group") {
+        render(currentScreen);
+      }
+    }).catch(() => {});
+  }
 }
 
 boot();
