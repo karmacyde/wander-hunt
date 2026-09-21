@@ -2366,31 +2366,64 @@ function toast(message, duration = 2600) {
   toastTimer = window.setTimeout(() => { el.hidden = true; }, duration);
 }
 
+/**
+ * Run `action` once nothing important is in flight. Reloading while a photo is
+ * being saved, or over an open dialog, would lose the child's place.
+ */
+function busyRightNow() {
+  return Boolean(
+    photoBusy ||
+    groupBusy ||
+    document.querySelector("dialog[open]") ||
+    (document.activeElement && document.activeElement.tagName === "INPUT")
+  );
+}
+
+function whenSafeToReload(action) {
+  if (!busyRightNow()) {
+    action();
+    return;
+  }
+  const timer = window.setInterval(() => {
+    if (busyRightNow()) return;
+    window.clearInterval(timer);
+    action();
+  }, 1000);
+}
+
 /* Service worker — offline after the first successful load */
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   const start = async () => {
     try {
       const registration = await navigator.serviceWorker.register("./sw.js");
-      registration.addEventListener("updatefound", () => {
-        const worker = registration.installing;
-        if (!worker) return;
-        worker.addEventListener("statechange", () => {
-          if (worker.state === "installed" && navigator.serviceWorker.controller) {
-            const pill = $("#update-pill");
-            pill.hidden = false;
-            pill.onclick = () => {
-              pill.hidden = true;
-              worker.postMessage({ type: "SKIP_WAITING" });
-            };
-          }
-        });
-      });
+
+      // A new worker skips the queue and claims the page, so this fires as
+      // soon as an update has finished downloading.
       let refreshing = false;
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         if (refreshing) return;
         refreshing = true;
-        window.location.reload();
+        const reload = () => window.location.reload();
+        if (busyRightNow()) {
+          // Mid-photo, or a dialog is open. Offer the choice rather than
+          // taking the page away, and take it the moment they are free.
+          const pill = $("#update-pill");
+          pill.hidden = false;
+          pill.onclick = reload;
+          whenSafeToReload(reload);
+        } else {
+          reload();
+        }
+      });
+
+      // Look for a new version on launch, and whenever the app is brought back
+      // to the front. An installed app can otherwise sit for weeks without the
+      // browser ever thinking to check.
+      const checkForUpdate = () => registration.update().catch(() => {});
+      checkForUpdate();
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") checkForUpdate();
       });
     } catch (err) {
       console.warn("Service worker registration failed", err);

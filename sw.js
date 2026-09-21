@@ -5,11 +5,12 @@
  * precached on install and served cache-first afterwards. Once the first
  * load succeeds the hunts work with no signal at all.
  *
- * Bump CACHE whenever a shell file changes; the old cache is deleted on
- * activate and the page shows an "Update ready" pill.
+ * Bump CACHE whenever a shell file changes. A new worker skips the waiting
+ * queue and claims the page straight away, so the app updates itself on the
+ * next launch; the page only asks first if somebody is mid-photo.
  */
 
-const CACHE = "wander-v7";
+const CACHE = "wander-v8";
 
 const SHELL = [
   "./",
@@ -31,6 +32,10 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
+  // Take over as soon as the new files are cached, rather than waiting for
+  // every tab to close. A child who reopens the app should not be stuck on
+  // last month's version because nobody noticed a small button.
+  self.skipWaiting();
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
     // Add individually so one missing optional file can't fail the whole install.
@@ -50,10 +55,6 @@ self.addEventListener("activate", (event) => {
     await Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)));
     await self.clients.claim();
   })());
-});
-
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("fetch", (event) => {
